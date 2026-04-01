@@ -2,17 +2,21 @@
 
 @theme {
   --color-ivory: #FDFBF7;
-  --color-deep-navy: #0B1325;
-  --color-border-line: #0B1325;
-  --color-foreground: #111111;
-  --font-serif: "Noto Serif KR", "Playfair Display", serif;
-  --font-sans: "Inter", sans-serif;
+  --color-deep-navy: #002B5B;
+  --color-border-line: #002B5B;
+  --color-foreground: #222222;
+  --font-serif: "KoPub Batang", "Noto Serif KR", "Nanum Myeongjo", "Batang", serif;
+  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
 }
 
 @layer base {
   body {
     background-color: var(--color-ivory);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
+    color: var(--color-deep-navy);
   }
 }

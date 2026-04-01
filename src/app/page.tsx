@@ -23,13 +23,13 @@ const FALLBACK_ITEMS = [
 ];
 
 export default function Home() {
-  const [newsItems, setNewsItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [newsItems, setNewsItems] = useState<any[]>(FALLBACK_ITEMS);
+  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const fetchPosts = async () => {
-    setLoading(true);
     try {
+      const { supabase } = await import('@/lib/supabase');
       const { data, error } = await supabase
         .from('posts')
         .select('*')
@@ -37,13 +37,9 @@ export default function Home() {
       
       if (!error && data && data.length > 0) {
         setNewsItems(data);
-      } else {
-        setNewsItems(FALLBACK_ITEMS); // 데이터 없을 때 샘플 노출
       }
     } catch (e) {
-      setNewsItems(FALLBACK_ITEMS);
-    } finally {
-      setLoading(false);
+      console.error(e);
     }
   };
 

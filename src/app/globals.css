@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #FDFBF7;
+  --color-deep-navy: #0B1325;
+  --color-border-line: #0B1325;
+  --color-foreground: #111111;
+  --font-serif: "Noto Serif KR", "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-foreground);
+    font-family: var(--font-serif);
+  }
+}

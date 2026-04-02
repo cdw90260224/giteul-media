@@ -1,43 +1,50 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// This is the Automation Engine that simulates AI Topic Selection and Writing
-// In a real production environment, you would call an LLM (like Gemini or OpenAI) here.
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
 export async function POST(request: Request) {
   try {
-    // 1. Topic Selection (Simulation)
-    const topics = [
-        "2026년 B2B SaaS 시장의 수익성 지표 변화",
-        "스타트업 M&A 시장에서의 데이터 보안 가치 평가",
-        "생성형 AI가 바꿀 기업용 솔루션의 미래",
-        "국내 유니콘 기업들의 엑시트 타이밍 분석",
-        "B2B 세일즈 자동화 도구의 효율성 리서치"
-    ];
-    const selectedTopic = topics[Math.floor(Math.random() * topics.length)];
+    if (!GEMINI_KEY) {
+      throw new Error('API 키가 설정되지 않았습니다.');
+    }
 
-    // 2. AI Content Generation (Writing Agent Simulation)
-    // Here we generate highly professional content tailored to "Giteul Media" style
-    const generatedPost = {
-        title: `[AI 리포트] ${selectedTopic}`,
-        summary: `AI 자동화 엔진이 분석한 ${selectedTopic}에 관한 심층 리포트입니다. 최근 시장 데이터를 기반으로 핵심 인사이트를 도출했습니다.`,
-        category: "AI 리서치",
-        content: `
-            <h3>${selectedTopic}에 관한 심층 분석</h3>
-            <p>본 리포트는 기틀 미디어의 AI 에이전트가 최근 24시간 동안 수집된 글로벌 비즈니스 데이터를 바탕으로 작성되었습니다.</p>
-            <p>최근 시장의 흐름을 살펴보면, ${selectedTopic} 분야에서 전례 없는 변화가 포착되고 있습니다. 특히 투자심리 위축에도 불구하고 특정 지표들은 오히려 팬데믹 이전 수준을 상회하는 견고함을 보여주고 있습니다.</p>
-            <h4>데이터 기반 핵심 인사이트</h4>
-            <ul>
-                <li>ARR 성장률 대비 순이익률 비중 증가</li>
-                <li>고객 유지비용(CAC)의 효율적 통제 모델 확산</li>
-                <li>M&A 시장에서의 데이터 자산 가치 재평가 가속화</li>
-            </ul>
-            <p>결론적으로, 현재의 시장 불확실성은 고도화된 데이터 분석을 통해 충분히 기회로 바뀔 수 있음을 시사합니다...</p>
-        `,
-        image_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
-        created_at: new Date().toISOString()
-    };
+    const genAI = new GoogleGenerativeAI(GEMINI_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
 
-    // 3. Upload to Supabase (Auto CMS)
+    // GEO Rules Prompt Integration
+    const prompt = `
+      너는 프리미엄 B2B 경제 미디어 '기틀(基틀)'의 시니어 리서치 에이전트이며, 구글의 최신 모델인 Gemini 2.5를 사용하고 있어.
+      아래의 'GEO 집필 규칙'을 100% 준수하여 기사를 작성해줘.
+      
+      [주제] "2026년 상반기 IPO 대어 TOP 3 재무 분석" (또는 이와 유사한 고가치 B2B 주제)
+      
+      [GEO 집필 규칙]
+      1. AI 요약 박스: 기사 시작 전, 핵심 내용을 반드시 3문장으로 요약하여 <div style='background-color: #f8fafc; border-left: 4px solid #002B5B; padding: 20px; margin-bottom: 30px;'> 박스 안에 넣어줘.
+      2. 데이터 표(Table): 본문 중간에 수치 데이터(매출액, 투자금, Valuation 등)를 반드시 <table> 태그를 이용한 표 형태로 삽입해줘.
+      3. 전문 용어: 일반적인 단어 대신 '시리즈 B 라운드', 'Post-money Value', 'ARR', 'Burn Rate' 등 전문 금융/비즈니스 용어를 사용해줘.
+      
+      결과물은 반드시 아래의 JSON 형식으로만 응답해줘:
+      {
+        "title": "기사 제목",
+        "summary": "핵심 분석 요약",
+        "category": "시장 분석 / IPO 리서치 / 스타트업 M&A 중 택 1",
+        "content": "위 GEO 규칙이 적용된 HTML 코드 전체",
+        "image_url": "Unsplash 비즈니스 관련 고품질 이미지 URL"
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const generatedPost = JSON.parse(jsonStr);
+    
+    generatedPost.created_at = new Date().toISOString();
+
+    // 2. Upload to Supabase (Database Direct Injection)
     const { data, error } = await supabase
         .from('posts')
         .insert([generatedPost])
@@ -45,17 +52,15 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
-    // 4. LinkedIn Posting Simulation (Social Agent)
-    // Note: To make this real, we would call the LinkedIn API using access tokens here.
-    console.log(`[LinkedIn Agent] Posting article: ${generatedPost.title}`);
-
     return NextResponse.json({ 
-        message: 'AI 기사 자동 발행 성공!', 
+        message: 'GEO 룰 기반 AI 기사 발행 성공!', 
         post: data 
     }, { status: 200 });
 
   } catch (error: any) {
-    console.error('Automation Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('GEO Generation Error:', error);
+    return NextResponse.json({ 
+      error: `발행 실패: ${error.message}` 
+    }, { status: 500 });
   }
 }

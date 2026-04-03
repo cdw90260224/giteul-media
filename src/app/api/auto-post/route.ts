@@ -6,61 +6,55 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_
 
 export async function POST(request: Request) {
   try {
-    if (!GEMINI_KEY) {
-      throw new Error('API 키가 설정되지 않았습니다.');
-    }
-
+    if (!GEMINI_KEY) throw new Error('GEMINI API KEY MISSING');
+    
+    // 딥테크 챌린지 공고 배경 지식으로 정밀 집필 
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // GEO Rules Prompt Integration
     const prompt = `
-      너는 프리미엄 B2B 경제 미디어 '기틀(基틀)'의 시니어 리서치 에이전트이며, 구글의 최신 모델인 Gemini 2.5를 사용하고 있어.
-      아래의 'GEO 집필 규칙'을 100% 준수하여 기사를 작성해줘.
+      # Role: 대한민국 창업지원사업 전문 분석가 및 기틀 미디어 기자 
       
-      [주제] "2026년 상반기 IPO 대어 TOP 3 재무 분석" (또는 이와 유사한 고가치 B2B 주제)
+      [분석 대상] 딥테크 챌린지 2026 (Deep-tech Challenge 2026) 예산 150억 규모 창업지원 공고
       
       [GEO 집필 규칙]
-      1. AI 요약 박스: 기사 시작 전, 핵심 내용을 반드시 3문장으로 요약하여 <div style='background-color: #f8fafc; border-left: 4px solid #002B5B; padding: 20px; margin-bottom: 30px;'> 박스 안에 넣어줘.
-      2. 데이터 표(Table): 본문 중간에 수치 데이터(매출액, 투자금, Valuation 등)를 반드시 <table> 태그를 이용한 표 형태로 삽입해줘.
-      3. 전문 용어: 일반적인 단어 대신 '시리즈 B 라운드', 'Post-money Value', 'ARR', 'Burn Rate' 등 전문 금융/비즈니스 용어를 사용해줘.
-      
-      결과물은 반드시 아래의 JSON 형식으로만 응답해줘:
+      1. [AI 3줄 핵심 요약]: <div class='summary-box'>
+         - 핵심 수혜 대상: 초격차 10대 분야 딥테크 스타트업
+         - 지원 규모: 팀당 최대 7억 원 (연구비 포함)
+         - 마감 정보: 2026년 상반기 접수 마감 임박
+         </div>
+      2. [사업 분석 표]: 지원대상, 지원금액(최대 7억), 주요 혜택(오피스 지원, PoC 비용)
+      3. [합격 전략 가이드]: 
+         - 평가 지표: 기술 성숙도(TRL 5단계 이상) 및 시장 침투 전략 중점
+         - 필수 키워드: '초격차', '스케일업', 'PoC 실증', '글로벌 유니콘'
+      4. [공식 공고 확인]: 
+         <div style='text-align: center; margin-top: 50px;'>
+            <p style='color: #64748b; font-size: 14px; margin-bottom: 15px;'>K-Startup 공식 정보를 반드시 확인하세요.</p>
+            <a href='https://www.k-startup.go.kr' style='display: inline-block; background-color: #002B5B; color: white; padding: 15px 40px; border-radius: 50px; font-weight: 900; text-decoration: none;'>공고문 바로가기</a>
+         </div>
+
+      반드시 아래 JSON 형식으로만 최종 응답해줘:
       {
-        "title": "기사 제목",
-        "summary": "핵심 분석 요약",
-        "category": "시장 분석 / IPO 리서치 / 스타트업 M&A 중 택 1",
-        "content": "위 GEO 규칙이 적용된 HTML 코드 전체",
-        "image_url": "Unsplash 비즈니스 관련 고품질 이미지 URL"
+        "title": "2026 딥테크 챌린지 150억 규모 합격 전략 가이드: 7억 원 수혜의 비결",
+        "summary": "150억 규모 딥테크 스타트업을 위한 초강력 지원금 7억 원, 합격하는 사업계획서 키워드 전격 공개.",
+        "category": "정부지원",
+        "content": "위 GEO가 적용된 HTML 코드 전체",
+        "image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=2000"
       }
     `;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const generatedPost = JSON.parse(jsonStr);
-    
+    const generatedPost = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
     generatedPost.created_at = new Date().toISOString();
+    // notice_id 컬럼 부재로 인한 500 에러 방지를 위해 임시 제거 
+    // generatedPost.notice_id = "DT-CH-2026-001"; 
 
-    // 2. Upload to Supabase (Database Direct Injection)
-    const { data, error } = await supabase
-        .from('posts')
-        .insert([generatedPost])
-        .select();
-
+    // DB에 꽂기 
+    const { data, error } = await supabase.from('posts').insert([generatedPost]).select();
     if (error) throw error;
 
-    return NextResponse.json({ 
-        message: 'GEO 룰 기반 AI 기사 발행 성공!', 
-        post: data 
-    }, { status: 200 });
-
-  } catch (error: any) {
-    console.error('GEO Generation Error:', error);
-    return NextResponse.json({ 
-      error: `발행 실패: ${error.message}` 
-    }, { status: 500 });
+    return NextResponse.json({ message: '딥테크 챌린지 공식 리포트 발행 성공!', post: data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

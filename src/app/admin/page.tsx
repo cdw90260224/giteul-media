@@ -35,21 +35,29 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/auto-post', { method: 'POST' });
       const result = await res.json();
+      
       if (res.ok) {
-        alert('발행 완료!');
+        alert('✨ [발행 성공] 새로운 팩트 리포트가 성공적으로 집필되었습니다!');
         fetchPosts();
       } else {
-        alert('오류: ' + result.error);
+        // 중복 또는 팩트 부재 시 상세 피드백 
+        if (result.error && result.error.includes('NO_NEW_INTELLIGENCE')) {
+          alert('🔕 [중복 방지] 현재 모든 최신 공고가 이미 집필되었습니다. 중복 발행을 방지하기 위해 집필을 일시 중단합니다.');
+        } else if (result.error && result.error.includes('DATA_MISSING_ERROR')) {
+          alert('❌ [팩트 부재] 수집된 공고 데이터에 오류가 있습니다. 할루시네이션(망상) 방지를 위해 작업을 중단합니다.');
+        } else {
+          alert('⚠️ [발행 오류] ' + (result.error || '알 수 없는 오류가 발생했습니다.'));
+        }
       }
     } catch (e) {
-      alert('발행 중 오류 발생');
+      alert('🚫 [연결 오류] 서버와 통신 중 오류가 발생했습니다.');
     } finally {
       setGenerating(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('데이터를 영구 삭제하시겠습니까?')) return;
+    if (!confirm('데이터를 영구 삭제하시겠습니까? (삭제된 정보는 복구할 수 없습니다)')) return;
     try {
       const res = await fetch('/api/delete-post', {
         method: 'POST',
@@ -60,11 +68,17 @@ export default function AdminPage() {
       
       if (res.ok) {
         setPosts(posts.filter(p => p.id !== id));
+        alert('🗑️ [삭제 완료] 정보가 성공적으로 폐기되었습니다.');
       } else {
-        alert('삭제 실패: ' + result.error);
+        // 권한 관련 에러 피드백 강화 
+        if (result.error && result.error.includes('Key not found')) {
+          alert('🔒 [권한 오류] .env.local에 SERVICE_ROLE_KEY가 설정되지 않아 삭제가 거부되었습니다. 관리자에게 문의하세요.');
+        } else {
+          alert('❌ [삭제 실패] ' + (result.error || '데이터베이스 정책(RLS) 파기 오류입니다.'));
+        }
       }
     } catch (e: any) {
-      alert('오류 발생');
+      alert('🚫 [시스템 오류] 삭제 명령 수행 중 시스템 충돌이 발생했습니다.');
     }
   };
 

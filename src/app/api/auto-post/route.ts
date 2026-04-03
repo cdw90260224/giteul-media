@@ -1,61 +1,143 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as cheerio from 'cheerio';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
-export async function POST(request: Request) {
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
+};
+
+type CategoryType = '정부지원공고' | 'AI/테크 트렌드' | '기업/마켓 뉴스' | '글로벌 뉴스';
+
+// Scrapers from existing logic...
+async function scrapeKStartup(): Promise<any[]> {
+  const TARGET_URL = 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do';
+  const response = await fetch(TARGET_URL, { headers: FETCH_HEADERS, cache: 'no-store' });
+  if (!response.ok) return [];
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const notices: any[] = [];
+  $('li, .card, .item, .box').each((_, el) => {
+    const textContent = $(el).text().replace(/\s+/g, ' ').trim();
+    const htmlContent = $(el).html() || '';
+    let title = $(el).find('.tit, p.tit, h4, strong').first().text().trim();
+    if (!title || title.length < 5) return;
+    const snMatch = htmlContent.match(/go_view\('?(\d+)'?\)/) || $(el).find('a').attr('onclick')?.match(/go_view\('?(\d+)'?\)/);
+    if (!snMatch) return;
+    const dateRegex = /(?:마감일자|접수마감|마감)\s*[:\s]*(\d{4}[-./]\d{2}[-./]\d{2})/;
+    const deadlineRaw = textContent.match(dateRegex)?.[1]?.replace(/[./]/g, '-') ?? null;
+    notices.push({
+      title,
+      agency: textContent.match(/(?:소관부처|주관기관|기관명)\s*([가-힣A-Za-z0-9]+원?)/)?.[1] ?? '창업진흥원',
+      deadline_date: deadlineRaw ? new Date(deadlineRaw).toISOString().split('T')[0] : null,
+      notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
+      source_type: '정부지원공고' as CategoryType,
+    });
+  });
+  return notices;
+}
+
+async function scrapeTechNews(): Promise<any[]> {
   try {
-    if (!GEMINI_KEY) throw new Error('GEMINI API KEY MISSING');
+    const RSS_URL = 'https://techcrunch.com/feed/';
+    const res = await fetch(RSS_URL, { headers: { 'User-Agent': FETCH_HEADERS['User-Agent'] }, cache: 'no-store' });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 15);
+    const news: any[] = [];
+    for (const item of items) {
+      const raw = item[1];
+      const title = raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] ?? raw.match(/<title>(.*?)<\/title>/)?.[1] ?? '';
+      const link = raw.match(/<link>(.*?)<\/link>/)?.[1] ?? '';
+      const pubDate = raw.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? '';
+      if (!title || !link) continue;
+      news.push({
+        title: title.trim(),
+        agency: 'TechCrunch',
+        published_date: new Date(pubDate).toISOString().split('T')[0],
+        notice_url: link.trim(),
+        source_type: 'AI/테크 트렌드' as CategoryType,
+      });
+    }
+    return news;
+  } catch { return []; }
+}
+
+async function isDuplicate(url: string, title: string) {
+    const { data: byUrl } = await supabase.from('posts').select('id').eq('notice_url', url).maybeSingle();
+    if (byUrl) return true;
+    const { data: byTitle } = await supabase.from('posts').select('id').eq('title', title).maybeSingle();
+    return !!byTitle;
+}
+
+function buildPrompt(item: any): string {
+  const isNotice = item.source_type === '정부지원공고';
+  const catColor = isNotice ? '#1d4ed8' : '#7c3aed';
+  return `
+# Role: 대한민국 창업 생태계 및 글로벌 딥테크 전문 분석 기자
+# Task: [원본 데이터]를 바탕으로 창업가를 위한 '전략 리포트' 리포트를 HTML 구조로 작성하라.
+
+[원본 데이터]
+- 제목: ${item.title}
+- 발행/소관기관: ${item.agency}
+- 카테고리: ${item.source_type}
+${isNotice ? `- 마감일: ${item.deadline_date ?? '공고문 확인 요망'}` : `- 발행일: ${item.published_date ?? '최근'}`}
+- 원문 링크: ${item.notice_url}
+
+[구조]: 1. [AI INSIGHT RE-MAP] (요약박스), 2. 상세 리포트, 3. 창업가 맞춤 전략, 4. 팩트 체크, 5. 공식 출처 버튼.
+[응답]: JSON 반환 (title, summary, category, content, notice_url, deadline_date, insight_summary, image_url). 백틱 없이.
+`;
+}
+
+export async function POST(request: Request) {
+  const genAI = new GoogleGenerativeAI(GEMINI_KEY!);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  
+  try {
+    // 1. Scrape all
+    const [notices, news] = await Promise.all([scrapeKStartup(), scrapeTechNews()]);
     
-    // 딥테크 챌린지 공고 배경 지식으로 정밀 집필 
-    const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    const prompt = `
-      # Role: 대한민국 창업지원사업 전문 분석가 및 기틀 미디어 기자 
-      
-      [분석 대상] 딥테크 챌린지 2026 (Deep-tech Challenge 2026) 예산 150억 규모 창업지원 공고
-      
-      [GEO 집필 규칙]
-      1. [AI 3줄 핵심 요약]: <div class='summary-box'>
-         - 핵심 수혜 대상: 초격차 10대 분야 딥테크 스타트업
-         - 지원 규모: 팀당 최대 7억 원 (연구비 포함)
-         - 마감 정보: 2026년 상반기 접수 마감 임박
-         </div>
-      2. [사업 분석 표]: 지원대상, 지원금액(최대 7억), 주요 혜택(오피스 지원, PoC 비용)
-      3. [합격 전략 가이드]: 
-         - 평가 지표: 기술 성숙도(TRL 5단계 이상) 및 시장 침투 전략 중점
-         - 필수 키워드: '초격차', '스케일업', 'PoC 실증', '글로벌 유니콘'
-      4. [공식 공고 확인]: 
-         <div style='text-align: center; margin-top: 50px;'>
-            <p style='color: #64748b; font-size: 14px; margin-bottom: 15px;'>K-Startup 또는 IRIS 공식 정보를 반드시 확인하세요.</p>
-            <a href='https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612' style='display: inline-block; background-color: #002B5B; color: white; padding: 15px 40px; border-radius: 50px; font-weight: 900; text-decoration: none;'>공고문 바로가기</a>
-         </div>
-
-      [중요] '공고문 바로가기' 링크는 반드시 해당 사업의 상세 페이지 URL을 사용하세요.
-      (DCP 2026의 경우: https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612)
-
-      반드시 아래 JSON 형식으로만 최종 응답해줘:
-      {
-        "title": "2026 딥테크 챌린지 150억 규모 합격 전략 가이드: 7억 원 수혜의 비결",
-        "summary": "150억 규모 딥테크 스타트업을 위한 초강력 지원금 7억 원, 합격하는 사업계획서 키워드 전격 공개.",
-        "category": "정부지원",
-        "content": "위 GEO가 적용된 HTML 코드 전체",
-        "notice_url": "https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612",
-        "image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=2000"
-      }
-    `;
-
-    const result = await model.generateContent(prompt);
-    const generatedPost = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
-    generatedPost.created_at = new Date().toISOString();
+    // 2. Plan Dispatch (E.g. 3 notices, 2 news per run)
+    const targetNotices = [];
+    for (const n of notices) {
+        if (!(await isDuplicate(n.notice_url, n.title))) targetNotices.push(n);
+        if (targetNotices.length >= 3) break;
+    }
     
-    // DB에 꽂기 
-    const { data, error } = await supabase.from('posts').insert([generatedPost]).select();
-    if (error) throw error;
+    const targetNews = [];
+    for (const n of news) {
+        if (!(await isDuplicate(n.notice_url, n.title))) targetNews.push(n);
+        if (targetNews.length >= 2) break;
+    }
 
-    return NextResponse.json({ message: '기사 발행 및 상세 링크 연결 성공!', post: data });
+    const targets = [...targetNotices, ...targetNews];
+    if (targets.length === 0) return NextResponse.json({ message: 'No new content found' });
+
+    const results = [];
+    for (const item of targets) {
+        try {
+            const prompt = buildPrompt(item);
+            const result = await model.generateContent(prompt);
+            let jsonText = result.response.text().trim();
+            jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+            const post = JSON.parse(jsonText);
+            post.created_at = new Date().toISOString();
+            if (!post.deadline_date) post.deadline_date = item.deadline_date ?? null;
+            
+            const { data, error } = await supabase.from('posts').insert([post]).select();
+            if (!error) results.push(post.title);
+        } catch (e) { console.error('Gen Error:', e); }
+    }
+
+    return NextResponse.json({ 
+        message: `Batch Success: ${results.length} articles generated`,
+        generated: results 
+    });
+
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

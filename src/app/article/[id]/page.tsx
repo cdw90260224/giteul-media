@@ -81,12 +81,17 @@ export default function ArticleDetail() {
       <nav className="w-full bg-white/90 backdrop-blur-xl border-b border-slate-50 sticky top-0 z-50 py-4 px-6">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-2xl font-black text-deep-navy tracking-tighter italic">기틀.</Link>
-          <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-widest">
-            <div className="flex items-center gap-3 text-slate-300">
-                <span className="text-deep-navy bg-blue-50 px-2 py-0.5 rounded-sm">{post.category || 'ANALYSIS'}</span>
-                <span className="w-0.5 h-3 bg-slate-100"></span>
-                <span>ID: {post.id}</span>
-            </div>
+          <div className="flex items-center gap-6 text-[14px] font-black uppercase tracking-widest">
+            {/* Colorful Category Tag */}
+            {post.category === '정부지원공고' && <span className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
+            {post.category === 'AI/테크 트렌드' && <span className="bg-purple-50 text-purple-700 border border-purple-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
+            {post.category === '기업/마켓 뉴스' && <span className="bg-teal-50 text-teal-700 border border-teal-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
+            {post.category === '글로벌 뉴스' && <span className="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
+            {!['정부지원공고','AI/테크 트렌드','기업/마켓 뉴스','글로벌 뉴스'].includes(post.category) && <span className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-[13px]">{post.category || 'REPORT'}</span>}
+            {post.deadline_date && (
+              <span className="text-red-500 font-black flex items-center gap-2">⏰ 마감 {post.deadline_date}</span>
+            )}
+            <span className="text-slate-200">|</span>
             <button onClick={handleDelete} className="text-red-400 hover:text-red-600 transition-colors">DELETE</button>
           </div>
         </div>
@@ -129,10 +134,10 @@ export default function ArticleDetail() {
           className="prose prose-slate max-w-none 
           prose-headings:text-deep-navy prose-headings:font-black
           prose-h3:text-3xl prose-h3:mt-24 prose-h3:mb-10 prose-h3:tracking-tighter
-          prose-p:text-[20px] prose-p:leading-[1.9] prose-p:text-slate-800 prose-p:mb-12 prose-p:tracking-tight
+          prose-p:text-[18px] prose-p:leading-[1.8] prose-p:text-slate-800 prose-p:mb-12 prose-p:tracking-tight
           prose-ul:my-12 prose-li:text-slate-800 prose-li:mb-5 prose-li:text-lg
           article-content"
-          dangerouslySetInnerHTML={{ __html: post.content }} 
+          dangerouslySetInnerHTML={{ __html: post.content ? post.content.replace(/<a\s+href=/g, "<a target='_blank' rel='noopener noreferrer' href=") : '' }}
         />
         
         <style dangerouslySetInnerHTML={{ __html: `
@@ -155,17 +160,23 @@ export default function ArticleDetail() {
           .article-content .summary-box {
             border-radius: 32px !important; padding: 40px 50px !important;
             border: 2px solid #e2e8f0 !important; border-left: 18px solid #002B5B !important;
-            background: #fcfdfe !important; margin: 60px 0 !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 43, 91, 0.04) !important; position: relative !important;
+            background: linear-gradient(135deg, #f8faff 0%, #fcfdfe 100%) !important;
+            margin: 60px 0 !important;
+            box-shadow: 0 25px 60px -12px rgba(0, 43, 91, 0.08) !important;
+            position: relative !important;
           }
           .article-content .summary-box::before {
-            content: "💡 AI INSIGHT RE-MAP"; position: absolute; top: -15px; left: 30px;
-            background: #002B5B; color: white; font-size: 10px; font-weight: 900;
-            padding: 4px 15px; border-radius: 5px; letter-spacing: 0.1em;
+            content: "💡 AI INSIGHT RE-MAP";
+            position: absolute; top: -16px; left: 30px;
+            background: linear-gradient(135deg, #002B5B, #1d4ed8);
+            color: white; font-size: 10px; font-weight: 900;
+            padding: 5px 18px; border-radius: 20px; letter-spacing: 0.15em;
+            box-shadow: 0 4px 15px rgba(0,43,91,0.3);
           }
           .article-content .summary-box li {
-              font-size: 1.1rem !important; font-weight: 700 !important;
-              color: #002B5B !important; margin-bottom: 15px !important;
+              font-size: 1.05rem !important; font-weight: 700 !important;
+              color: #1e293b !important; margin-bottom: 14px !important;
+              padding-left: 8px !important; border-left: 3px solid #002B5B !important;
           }
         ` }} />
       </article>

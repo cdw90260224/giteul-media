@@ -8,6 +8,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
+  const [todayCount, setTodayCount] = useState(0);
+  const [nextSchedule, setNextSchedule] = useState('');
+
   const fetchPosts = async () => {
     setLoading(true);
     try {
@@ -18,6 +21,19 @@ export default function AdminPage() {
       
       if (!error && data) {
         setPosts(data);
+        
+        // Calculate Today's Generated Count
+        const startOfToday = new Date();
+        startOfToday.setHours(0,0,0,0);
+        const count = data.filter(p => new Date(p.created_at) >= startOfToday).length;
+        setTodayCount(count);
+
+        // Calculate Next Schedule (Static mock based on user request: 7, 1, 6)
+        const hour = new Date().getHours();
+        if (hour < 7) setNextSchedule('07:00 AM');
+        else if (hour < 13) setNextSchedule('01:00 PM');
+        else if (hour < 18) setNextSchedule('06:00 PM');
+        else setNextSchedule('07:00 AM (Tomorrow)');
       }
     } catch (e) {
       console.error(e);
@@ -37,48 +53,32 @@ export default function AdminPage() {
       const result = await res.json();
       
       if (res.ok) {
-        alert('✨ [발행 성공] 새로운 팩트 리포트가 성공적으로 집필되었습니다!');
+        alert('✨ [Batch Success] ' + (result.generated ? result.generated.length : '0') + '개의 신규 리포트가 발행되었습니다!');
         fetchPosts();
       } else {
-        // 중복 또는 팩트 부재 시 상세 피드백 
-        if (result.error && result.error.includes('NO_NEW_INTELLIGENCE')) {
-          alert('🔕 [중복 방지] 현재 모든 최신 공고가 이미 집필되었습니다. 중복 발행을 방지하기 위해 집필을 일시 중단합니다.');
-        } else if (result.error && result.error.includes('DATA_MISSING_ERROR')) {
-          alert('❌ [팩트 부재] 수집된 공고 데이터에 오류가 있습니다. 할루시네이션(망상) 방지를 위해 작업을 중단합니다.');
-        } else {
-          alert('⚠️ [발행 오류] ' + (result.error || '알 수 없는 오류가 발생했습니다.'));
-        }
+        alert('⚠️ [발행 오류] ' + (result.error || '알 수 없는 오류'));
       }
     } catch (e) {
-      alert('🚫 [연결 오류] 서버와 통신 중 오류가 발생했습니다.');
+      alert('🚫 [연결 오류] 서버와 통신 불가');
     } finally {
       setGenerating(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('데이터를 영구 삭제하시겠습니까? (삭제된 정보는 복구할 수 없습니다)')) return;
     try {
       const res = await fetch('/api/delete-post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       });
-      const result = await res.json();
-      
       if (res.ok) {
         setPosts(posts.filter(p => p.id !== id));
-        alert('🗑️ [삭제 완료] 정보가 성공적으로 폐기되었습니다.');
-      } else {
-        // 권한 관련 에러 피드백 강화 
-        if (result.error && result.error.includes('Key not found')) {
-          alert('🔒 [권한 오류] .env.local에 SERVICE_ROLE_KEY가 설정되지 않아 삭제가 거부되었습니다. 관리자에게 문의하세요.');
-        } else {
-          alert('❌ [삭제 실패] ' + (result.error || '데이터베이스 정책(RLS) 파기 오류입니다.'));
-        }
+        alert('🗑️ [삭제 완료] 정보 폐기 성공');
+        fetchPosts();
       }
     } catch (e: any) {
-      alert('🚫 [시스템 오류] 삭제 명령 수행 중 시스템 충돌이 발생했습니다.');
+      alert('🚫 [시스템 오류] 삭제 실패');
     }
   };
 
@@ -89,26 +89,50 @@ export default function AdminPage() {
         <div className="flex items-center gap-4">
             <Link href="/" className="text-2xl font-black text-deep-navy italic tracking-tighter">기틀.</Link>
             <div className="h-4 w-[1px] bg-gray-200"></div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Control Hub</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Unmanned Control Hub</span>
         </div>
         <div className="flex items-center gap-4">
             <button 
                 onClick={handleGenerate}
                 disabled={generating}
-                className={`bg-deep-navy text-white px-6 py-2.5 rounded-full text-[10px] font-black shadow-xl tracking-widest transition-all ${
+                className={`bg-deep-navy text-white px-8 py-3 rounded-full text-[12px] font-black shadow-xl tracking-widest transition-all ${
                     generating ? 'opacity-50 animate-pulse' : 'hover:scale-105 active:scale-95'
                 }`}
             >
-                {generating ? '집필 중...' : '🔥 새 기사 집필 시작'}
+                {generating ? '배치 집필 중...' : '🔥 즉시 수동 배치 집필'}
             </button>
-            <Link href="/" className="text-[10px] font-black text-slate-300 hover:text-deep-navy tracking-widest uppercase">Portal Exit</Link>
+            <Link href="/" className="text-[12px] font-black text-slate-300 hover:text-deep-navy tracking-widest uppercase ml-4">Portal Exit</Link>
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-6 py-20">
-        <header className="mb-16">
-            <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter">Contents.</h2>
-            <p className="text-slate-400 font-bold text-sm">현재 발행된 인텔리전스 리포트 목록입니다. 제목을 눌러 바로 확인하세요.</p>
+      <main className="max-w-6xl mx-auto px-6 py-20">
+        {/* Automation Dashboard */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-4">
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Today's Generation</span>
+                <span className="text-6xl font-black text-deep-navy">{todayCount}</span>
+                <span className="text-[11px] font-bold text-green-500 uppercase tracking-tighter">10~15 Target Active</span>
+            </div>
+            <div className="bg-white p-8 rounded-[40px] border border-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] flex flex-col items-center justify-center space-y-4 border-t-4 border-t-blue-500">
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Next Auto Schedule</span>
+                <span className="text-4xl font-black text-slate-800">{nextSchedule}</span>
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Cron Job: Daily (07, 13, 18)</span>
+            </div>
+            <div className="bg-deep-navy p-8 rounded-[40px] shadow-2xl flex flex-col items-center justify-center space-y-4 text-white">
+                <span className="text-[11px] font-black text-white/40 uppercase tracking-widest">Total Intelligence</span>
+                <span className="text-6xl font-black">{posts.length}</span>
+                <div className="flex gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></span>
+                    <span className="text-[10px] font-bold text-white/60 tracking-widest">ENGINE RUNNING</span>
+                </div>
+            </div>
+        </section>
+
+        <header className="mb-16 flex items-end justify-between border-b border-slate-100 pb-8">
+            <div className="space-y-1">
+                <h2 className="text-4xl font-black text-slate-900 tracking-tighter italic">Contents Repository.</h2>
+                <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">현재 발행된 모든 인텔리전스 배포 목록입니다.</p>
+            </div>
         </header>
 
         {loading ? (
@@ -148,7 +172,7 @@ export default function AdminPage() {
                             </Link>
                             <button 
                                 onClick={(e) => { e.preventDefault(); handleDelete(post.id); }}
-                                className="text-[10px] font-black text-red-300 hover:text-white hover:bg-red-500 bg-red-50/50 px-5 py-2.5 rounded-xl transition-all"
+                                className="text-[10px] font-black text-red-300 hover:text-white hover:bg-red-500 bg-red-50/50 px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
                             >
                                 DELETE
                             </button>

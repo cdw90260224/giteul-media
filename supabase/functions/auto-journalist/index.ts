@@ -8,38 +8,67 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 serve(async (req) => {
   try {
-    // 1. K-Startup 공고 데이터 수집 (예시: 딥테크 챌린지 2026)
-    // 실제 운영 시에는 여기서 axios/fetch를 통해 K-Startup을 크롤링합니다.
+    // 1. K-Startup 실시간 공고 데이터 수집 (Strict Fact-Check Mode)
+    const TARGET_URL = 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do';
+    console.log(`[CRAWL] Fetching live data from: ${TARGET_URL}`);
+
+    const response = await fetch(TARGET_URL, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.k-startup.go.kr/'
+      }
+    });
+
+    if (!response.ok) throw new Error(`K-Startup 서버 응답 오류: ${response.status}`);
+    const html = await response.text();
+
+    // 2. 정밀 분석 (RegExp - 팩트 정밀 타격)
+    const titleMatch = html.match(/<p class="tit">([^<]+)<\/p>/);
+    const snMatch = html.match(/go_view\('(\d+)'\)/);
+    const dateMatch = html.match(/마감일자\s*:\s*(\d{4}-\d{2}-\d{2})/);
+
+    // 데이터가 없으면 '소설 방지'를 위해 즉시 중단
+    if (!titleMatch || !snMatch) {
+      console.error("[CRAWL_ERROR] 필수 데이터 추출 실패. 사이트 구조 변경 가능성.");
+      throw new Error("DATA_MISSING_ERROR: 실시간 팩트 데이터를 수집하지 못했습니다. 할루시네이션 방지를 위해 작업을 중단합니다. (No Data, No Report)");
+    }
+
     const crawlData = {
-      title: "2026 딥테크 챌린지 (Deep-tech Challenge)",
-      budget: "150억 원",
-      max_support: "7억 원",
-      deadline: "2026-06-30",
-      description: "초격차 10대 분야 기술력을 보유한 스타트업 대상 집중 육성 사업"
+      title: titleMatch[1].trim(),
+      notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
+      deadline: dateMatch ? dateMatch[1] : "상세페이지 확인 요망"
     };
 
-    // 2. Gemini API 호출 (시스템 지침 적용)
+    console.log(`[FACT_FOUND] 분석 완료: ${crawlData.title}`);
+
+    // 3. Gemini API 호출 (팩트 준수 지침 강화)
     const prompt = `
-      # Role: 대한민국 창업지원사업 전문 분석가 및 GEO 최적화 기자
+      # Role: 대한민국 창업지원사업 팩트 전문 기자 (Hallucination Control Mode)
+      # Requirement: 당신의 주관이나 추측은 완전히 배제하십시오. 제공된 팩트 데이터에만 집중하십시오.
 
-      # Task: K-Startup 공고 데이터를 분석하여 창업가들에게 실질적인 '합격 전략' 리포트 작성.
+      # Factual Context (추출된 원본 데이터):
+      - 사업명: ${crawlData.title}
+      - 공고 주소: ${crawlData.notice_url}
+      - 마감일: ${crawlData.deadline}
 
-      # Data: ${JSON.stringify(crawlData)}
+      # Strict Writing Rules:
+      1. 위 데이터에 존재하지 않는 지원 금액(예: 예산 150억 등), 대상(초격차 10대 분야 등), 상세 혜택을 절대 지어내지 마십시오.
+      2. 사실 관계가 없는 내용은 기재하지 않으며, 반드시 "공고문 상세 페이지를 통해 확인이 필요함"이라고 솔직하게 안내하십시오.
+      3. 허위 정보 기재 시 당신의 기사는 폐기되며 시스템에 의해 신뢰도가 하락합니다.
 
-      # Article Structure (GEO Rule):
-      1. [AI 3줄 핵심 요약]: <div class="summary-box">이 사업의 핵심 수혜 대상, 지원 금액, 마감일 요약.</div>
-      2. [사업 분석 표]: 지원대상, 지원규모(현금/현물), 주요 혜택을 Table 형태로 정리.
-      3. [합격 전략 가이드]: 기술 성숙도(TRL) 및 사업계획서 필승 키워드 제시.
-      4. [주의사항]: 할루시네이션(허위정보) 방지 및 실질적 조언.
-      5. [공고문 바로가기]: <a href="https://www.k-startup.go.kr">공고문 바로가기</a> 링크 포함.
+      # Article Structure:
+      - [AI 3줄 핵심 요약]: 데이터에 근거한 사실만 3줄 요약.
+      - [공고문 바로가기]: <div style="text-align: center; margin-top: 50px;">
+          <a href="${crawlData.notice_url}" style="display: inline-block; background-color: #002B5B; color: white; padding: 15px 40px; border-radius: 50px; font-weight: 900; text-decoration: none;">공고문 바로가기</a>
+        </div>
 
-      # Response Format: 반드시 아래 JSON 형식으로만 응답할 것.
+      # Response Format: JSON
       {
-        "title": "기사 제목",
-        "summary": "1줄 요약",
+        "title": "${crawlData.title}",
+        "summary": "기틀 미디어 검증 핵심 팩트 요약",
         "category": "정부지원",
-        "content": "위 GEO 규정이 적용된 HTML 본문",
-        "image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=2000"
+        "content": "데이터 기반의 정확한 HTML 본문",
+        "image_url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
       }
     `;
 

@@ -8,9 +8,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 serve(async (req) => {
   try {
-    // 1. K-Startup 실시간 공고 데이터 수집 (Strict Fact-Check Mode)
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // 1. K-Startup 실시간 공고 리스트 수집 
     const TARGET_URL = 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do';
-    console.log(`[CRAWL] Fetching live data from: ${TARGET_URL}`);
+    console.log(`[CRAWL] Scanning for new intelligence at: ${TARGET_URL}`);
 
     const response = await fetch(TARGET_URL, {
       headers: {
@@ -22,39 +24,62 @@ serve(async (req) => {
     if (!response.ok) throw new Error(`K-Startup 서버 응답 오류: ${response.status}`);
     const html = await response.text();
 
-    // 2. 정밀 분석 (RegExp - 팩트 정밀 타격)
-    const titleMatch = html.match(/<p class="tit">([^<]+)<\/p>/);
-    const snMatch = html.match(/go_view\('(\d+)'\)/);
-    const dateMatch = html.match(/마감일자\s*:\s*(\d{4}-\d{2}-\d{2})/);
+    // 2. 여러 공고 분석 (데이터 정밀 매칭)
+    // <li> 또는 <div class="ann_top"> 구조 분석 
+    const items: { title: string, pbancSn: string, deadline: string }[] = [];
+    const titles = [...html.matchAll(/<p class="tit">([^<]+)<\/p>/g)];
+    const sns = [...html.matchAll(/go_view\('(\d+)'\)/g)];
+    const dates = [...html.matchAll(/마감일자\s*:\s*(\d{4}-\d{2}-\d{2})/g)];
 
-    // 데이터가 없으면 '소설 방지'를 위해 즉시 중단
-    if (!titleMatch || !snMatch) {
-      console.error("[CRAWL_ERROR] 필수 데이터 추출 실패. 사이트 구조 변경 가능성.");
-      throw new Error("DATA_MISSING_ERROR: 실시간 팩트 데이터를 수집하지 못했습니다. 할루시네이션 방지를 위해 작업을 중단합니다. (No Data, No Report)");
+    for (let i = 0; i < Math.min(titles.length, sns.length); i++) {
+        items.push({
+            title: titles[i][1].trim(),
+            pbancSn: sns[i][1],
+            deadline: dates[i] ? dates[i][1] : "상세페이지 확인 요망"
+        });
     }
 
-    const crawlData = {
-      title: titleMatch[1].trim(),
-      notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
-      deadline: dateMatch ? dateMatch[1] : "상세페이지 확인 요망"
-    };
+    if (items.length === 0) {
+        throw new Error("FACT_SCRAPE_FAILED: 수집된 공고가 하나도 없습니다.");
+    }
 
-    console.log(`[FACT_FOUND] 분석 완료: ${crawlData.title}`);
+    // 3. 중복 체크 (DB와 대조하여 새로운 공고 선정)
+    let selectedAnnouncement = null;
+    for (const item of items) {
+        const noticeUrl = `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${item.pbancSn}`;
+        const { data: existing } = await supabase
+            .from('posts')
+            .select('id')
+            .eq('title', item.title) // 제목이나 URL 중 하나로 중복 체크 
+            .maybeSingle();
+            
+        if (!existing) {
+            selectedAnnouncement = { ...item, notice_url: noticeUrl };
+            break; // 가장 최상단의 '새로운' 공고를 발견하면 중지 
+        }
+    }
 
-    // 3. Gemini API 호출 (팩트 준수 지침 강화)
+    if (!selectedAnnouncement) {
+        throw new Error("NO_NEW_INTELLIGENCE: 현재 모든 최신 공고가 이미 집필 완료된 상태입니다. 중복 발행을 방지합니다.");
+    }
+
+    const crawlData = selectedAnnouncement;
+    console.log(`[TARGET_DISCOVERED] 새로운 팩트 발견: ${crawlData.title}`);
+
+    // 4. Gemini API 호출 (팩트 준수 지침 강화)
     const prompt = `
       # Role: 대한민국 창업지원사업 팩트 전문 기자 (Hallucination Control Mode)
-      # Requirement: 당신의 주관이나 추측은 완전히 배제하십시오. 제공된 팩트 데이터에만 집중하십시오.
+      # Requirement: 당신의 주관이나 추측은 완전히 배제하십시오. 오직 제공된 팩트 데이터에만 집중하십시오.
 
       # Factual Context (추출된 원본 데이터):
-      - 사업명: ${crawlData.title}
+      - 공고명: ${crawlData.title}
       - 공고 주소: ${crawlData.notice_url}
       - 마감일: ${crawlData.deadline}
 
       # Strict Writing Rules:
-      1. 위 데이터에 존재하지 않는 지원 금액(예: 예산 150억 등), 대상(초격차 10대 분야 등), 상세 혜택을 절대 지어내지 마십시오.
-      2. 사실 관계가 없는 내용은 기재하지 않으며, 반드시 "공고문 상세 페이지를 통해 확인이 필요함"이라고 솔직하게 안내하십시오.
-      3. 허위 정보 기재 시 당신의 기사는 폐기되며 시스템에 의해 신뢰도가 하락합니다.
+      1. 위 데이터에 없는 지원 금액, 대상, 상세 혜택을 당신의 지식으로 보강하지 마십시오.
+      2. 사실 관계가 불분명한 내용은 기치 않으며, 반드시 "공고문 상세 페이지를 통해 확인이 필요함"이라고 솔직하게 기술하십시오.
+      3. 허위 정보 기재 시 당신의 기사는 폐기됩니다. 중복 없는 새로운 소식 위주로 작성하십시오.
 
       # Article Structure:
       - [AI 3줄 핵심 요약]: 데이터에 근거한 사실만 3줄 요약.
@@ -65,10 +90,10 @@ serve(async (req) => {
       # Response Format: JSON
       {
         "title": "${crawlData.title}",
-        "summary": "기틀 미디어 검증 핵심 팩트 요약",
+        "summary": "팩트 기반 핵심 요약 데이터",
         "category": "정부지원",
         "content": "데이터 기반의 정확한 HTML 본문",
-        "image_url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
+        "image_url": "https://images.unsplash.com/photo-1460925895917-afdab827c52f"
       }
     `;
 
@@ -85,7 +110,6 @@ serve(async (req) => {
     const article = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
 
     // 3. Supabase DB 저장
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     const { data, error } = await supabase.from('posts').insert([{
       ...article,
       created_at: new Date().toISOString()

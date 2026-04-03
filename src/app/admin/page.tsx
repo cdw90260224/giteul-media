@@ -51,11 +51,17 @@ export default function AdminPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('데이터를 영구 삭제하시겠습니까?')) return;
     try {
-      const { error } = await supabase.from('posts').delete().eq('id', id);
-      if (!error) {
+      const res = await fetch('/api/delete-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const result = await res.json();
+      
+      if (res.ok) {
         setPosts(posts.filter(p => p.id !== id));
       } else {
-        alert('삭제 실패: ' + error.message + '\n\n(SQL Editor에서 RLS 해제가 필요할 수 있습니다)');
+        alert('삭제 실패: ' + result.error);
       }
     } catch (e: any) {
       alert('오류 발생');

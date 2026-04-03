@@ -29,9 +29,12 @@ export async function POST(request: Request) {
          - 필수 키워드: '초격차', '스케일업', 'PoC 실증', '글로벌 유니콘'
       4. [공식 공고 확인]: 
          <div style='text-align: center; margin-top: 50px;'>
-            <p style='color: #64748b; font-size: 14px; margin-bottom: 15px;'>K-Startup 공식 정보를 반드시 확인하세요.</p>
-            <a href='https://www.k-startup.go.kr' style='display: inline-block; background-color: #002B5B; color: white; padding: 15px 40px; border-radius: 50px; font-weight: 900; text-decoration: none;'>공고문 바로가기</a>
+            <p style='color: #64748b; font-size: 14px; margin-bottom: 15px;'>K-Startup 또는 IRIS 공식 정보를 반드시 확인하세요.</p>
+            <a href='https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612' style='display: inline-block; background-color: #002B5B; color: white; padding: 15px 40px; border-radius: 50px; font-weight: 900; text-decoration: none;'>공고문 바로가기</a>
          </div>
+
+      [중요] '공고문 바로가기' 링크는 반드시 해당 사업의 상세 페이지 URL을 사용하세요.
+      (DCP 2026의 경우: https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612)
 
       반드시 아래 JSON 형식으로만 최종 응답해줘:
       {
@@ -39,6 +42,7 @@ export async function POST(request: Request) {
         "summary": "150억 규모 딥테크 스타트업을 위한 초강력 지원금 7억 원, 합격하는 사업계획서 키워드 전격 공개.",
         "category": "정부지원",
         "content": "위 GEO가 적용된 HTML 코드 전체",
+        "notice_url": "https://www.iris.go.kr/ntc/business/selectBusinessDetail.do?prgId=P2612",
         "image_url": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=2000"
       }
     `;
@@ -46,14 +50,12 @@ export async function POST(request: Request) {
     const result = await model.generateContent(prompt);
     const generatedPost = JSON.parse(result.response.text().replace(/```json/g, '').replace(/```/g, '').trim());
     generatedPost.created_at = new Date().toISOString();
-    // notice_id 컬럼 부재로 인한 500 에러 방지를 위해 임시 제거 
-    // generatedPost.notice_id = "DT-CH-2026-001"; 
-
+    
     // DB에 꽂기 
     const { data, error } = await supabase.from('posts').insert([generatedPost]).select();
     if (error) throw error;
 
-    return NextResponse.json({ message: '딥테크 챌린지 공식 리포트 발행 성공!', post: data });
+    return NextResponse.json({ message: '기사 발행 및 상세 링크 연결 성공!', post: data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 
@@ -128,7 +129,13 @@ export async function POST(request: Request) {
             post.created_at = new Date().toISOString();
             if (!post.deadline_date) post.deadline_date = item.deadline_date ?? null;
             
-            const { data, error } = await supabase.from('posts').insert([post]).select();
+            // Server-side Superuser Client (RLS 우회)
+            const supabaseAdmin = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+
+            const { data, error } = await supabaseAdmin.from('posts').insert([post]).select();
             if (!error) results.push(post.title);
         } catch (e) { console.error('Gen Error:', e); }
     }

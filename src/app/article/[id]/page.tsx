@@ -14,216 +14,135 @@ export default function ArticleDetail() {
     async function fetchPostData() {
       if (!params?.id) return;
       try {
-        // 1. 메인 기사 데이터 로드
-        const { data, error } = await supabase
-          .from('posts')
-          .select('*')
-          .eq('id', params.id)
-          .maybeSingle();
-        
+        const { data, error } = await supabase.from('posts').select('*').eq('id', params.id).maybeSingle();
         if (!error && data) {
           setPost(data);
-          
-          // 2. 관련 기사 추천 로드 (카테고리 매칭 3개)
-          const { data: relatedData } = await supabase
-            .from('posts')
-            .select('*')
-            .neq('id', data.id)
-            .eq('category', data.category)
-            .limit(3);
-          
+          const { data: relatedData } = await supabase.from('posts').select('*').neq('id', data.id).eq('category', data.category).limit(3);
           if (relatedData) setRelatedPosts(relatedData);
         }
-      } catch (e) {
-        console.error('Fetch error:', e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (e) { console.error(e); } finally { setLoading(false); }
     }
     fetchPostData();
   }, [params?.id]);
 
-  // Handle Deletion (Actual Database Call)
   const handleDelete = async () => {
-    if (!confirm('이 기사를 데이터베이스에서 영구히 삭제하시겠습니까?')) return;
-    try {
-      const { error } = await supabase.from('posts').delete().eq('id', post.id);
-      if (error) {
-        alert('삭제 실패: ' + error.message);
-      } else {
-        alert('완벽하게 삭제되었습니다.');
-        window.location.href = '/'; 
-      }
-    } catch (e: any) {
-      alert('삭제 도중 오류 발생');
-    }
+    if (!confirm('이 기사를 영구히 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from('posts').delete().eq('id', post.id);
+    if (!error) window.location.href = '/';
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white font-sans text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] animate-pulse">
-        System Loading...
-    </div>
-  );
-
-  if (!post) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center p-12 bg-white rounded-[40px] shadow-2xl border border-slate-100 max-w-md mx-6">
-            <h1 className="text-2xl font-black text-deep-navy mb-4 tracking-tighter">Report Missing.</h1>
-            <p className="text-slate-400 text-sm mb-10 font-medium leading-relaxed uppercase tracking-tight">기사가 삭제되었거나 잘못된 경로입니다.</p>
-            <Link href="/" className="bg-deep-navy text-white px-10 py-4 rounded-full font-black text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-transform inline-block uppercase italic">Back to Portal</Link>
-        </div>
-    </div>
-  );
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-black animate-pulse text-slate-200">Loading Report...</div>;
+  if (!post) return <div className="min-h-screen flex items-center justify-center">Post missing.</div>;
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
-      {/* Article Header (Navigation) */}
+      {/* Navigation */}
       <nav className="w-full bg-white/90 backdrop-blur-xl border-b border-slate-50 sticky top-0 z-50 py-4 px-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <Link href="/" className="text-2xl font-black text-deep-navy tracking-tighter italic">기틀.</Link>
-          <div className="flex items-center gap-6 text-[14px] font-black uppercase tracking-widest">
-            {/* Colorful Category Tag */}
-            {post.category === '정부지원공고' && <span className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
-            {post.category === 'AI/테크 트렌드' && <span className="bg-purple-50 text-purple-700 border border-purple-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
-            {post.category === '기업/마켓 뉴스' && <span className="bg-teal-50 text-teal-700 border border-teal-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
-            {post.category === '글로벌 뉴스' && <span className="bg-amber-50 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-[13px]">{post.category}</span>}
-            {!['정부지원공고','AI/테크 트렌드','기업/마켓 뉴스','글로벌 뉴스'].includes(post.category) && <span className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-1.5 rounded-full text-[13px]">{post.category || 'REPORT'}</span>}
-            {post.deadline_date && (
-              <span className="text-red-500 font-black flex items-center gap-2">⏰ 마감 {post.deadline_date}</span>
-            )}
-            <span className="text-slate-200">|</span>
-            <button onClick={handleDelete} className="text-red-400 hover:text-red-600 transition-colors">DELETE</button>
+          <div className="flex items-center gap-6">
+            <span className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-[13px] font-black uppercase tracking-widest">{post.category}</span>
+            <button onClick={handleDelete} className="text-red-400 font-bold text-xs uppercase tracking-widest opacity-30 hover:opacity-100 transition-opacity">Delete</button>
           </div>
         </div>
       </nav>
 
-      {/* Main Title Section */}
-      <header className="max-w-4xl mx-auto px-6 pt-20 pb-12">
-        <div className="space-y-8">
-            <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{post.created_at ? new Date(post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '2026.04.02'}</span>
-                <span className="h-[1px] w-12 bg-slate-100"></span>
-                <span className="text-[10px] font-black text-deep-navy uppercase tracking-widest">Intelligence Report</span>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black text-[#0f172a] leading-[1.05] tracking-tighter">
+      {/* Title Section (10 style) */}
+      <header className="max-w-4xl mx-auto px-6 pt-16 pb-12">
+        <div className="space-y-6">
+            <h1 className="text-3xl md:text-4xl lg:text-[42px] font-black text-[#0f172a] leading-[1.2] tracking-tighter">
                 {post.title}
             </h1>
-            <div className="py-10 border-l-[12px] border-deep-navy pl-10 bg-slate-50 shadow-inner rounded-r-[40px]">
-                <p className="text-xl md:text-2xl text-slate-600 font-bold leading-relaxed italic opacity-90 tracking-tight">
+            <div className="py-8 border-l-[4px] border-[#0F172A] pl-8">
+                <p className="text-lg md:text-xl text-slate-500 font-semibold leading-relaxed tracking-tight">
                     {post.summary}
                 </p>
             </div>
         </div>
       </header>
 
-      {/* Hero Image Section */}
+      {/* Hero Image */}
       <div className="max-w-5xl mx-auto px-6 mb-24">
-        <div className="relative aspect-[21/9] w-full rounded-[3rem] overflow-hidden shadow-[0_40px_100px_-20px_rgba(0,43,91,0.15)] border-[16px] border-white bg-slate-50">
+        <div className="relative aspect-[21/9] w-full rounded-[2.5rem] overflow-hidden shadow-2xl border-[12px] border-white ring-1 ring-slate-100 bg-slate-50">
           <img 
-            src={post.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} 
-            className="w-full h-full object-cover"
-            alt="Hero"
-            onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; }}
+            src={post.image_url} 
+            className="w-full h-full object-cover" 
+            alt="Hero" 
+            onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200'; }}
           />
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Article Content (10 style: Frameless AI INSIGHT) */}
       <article className="max-w-4xl mx-auto px-6 pb-40">
         <div 
-          className="prose prose-slate max-w-none 
-          prose-headings:text-deep-navy prose-headings:font-black
-          prose-h3:text-3xl prose-h3:mt-24 prose-h3:mb-10 prose-h3:tracking-tighter
-          prose-p:text-[18px] prose-p:leading-[1.8] prose-p:text-slate-800 prose-p:mb-12 prose-p:tracking-tight
-          prose-ul:my-12 prose-li:text-slate-800 prose-li:mb-5 prose-li:text-lg
-          article-content"
-          dangerouslySetInnerHTML={{ __html: post.content ? post.content.replace(/<a\s+href=/g, "<a target='_blank' rel='noopener noreferrer' href=") : '' }}
+          className="prose prose-slate max-w-none article-content"
+          dangerouslySetInnerHTML={{ __html: post.content }}
         />
         
         <style dangerouslySetInnerHTML={{ __html: `
-          .article-content table {
-            width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important;
-            margin: 80px 0 !important; font-size: 15px !important; background: white !important;
-            border-radius: 24px !important; box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.08) !important;
-            border: 2px solid #f1f5f9 !important; overflow: hidden !important;
+          .article-content h2 {
+            font-size: 2.2rem !important; margin-top: 100px !important; margin-bottom: 40px !important;
+            color: #0f172a !important; border-top: 1.5px solid #F1F5F9 !important; padding-top: 50px !important;
+            font-weight: 1000 !important; letter-spacing: -0.03em !important;
           }
-          .article-content th {
-            background-color: #f8fafc !important; border-bottom: 2px solid #f1f5f9 !important;
-            padding: 24px !important; color: #002B5B !important; font-weight: 900 !important;
-            text-transform: uppercase !important; letter-spacing: 0.12em !important;
-            text-align: left !important; font-size: 13px !important;
+          .article-content h3 {
+            font-size: 1.6rem !important; margin-top: 60px !important; margin-bottom: 24px !important;
+            color: #1e293b !important; font-weight: 900 !important;
           }
-          .article-content td {
-            border-bottom: 1px solid #f8fafc !important; padding: 24px !important;
-            color: #334155 !important; font-weight: 600 !important; line-height: 1.6 !important;
+          .article-content p {
+            font-size: 1.15rem !important; line-height: 1.95 !important; color: #334155 !important;
+            margin-bottom: 35px !important;
           }
+          .article-content strong { color: #002B5B !important; font-weight: 900 !important; }
+
+          /* [AI INSIGHT RE-MAP - 10번 프레임리스 스타일] */
           .article-content .summary-box {
-            border-radius: 32px !important; padding: 40px 50px !important;
-            border: 2px solid #e2e8f0 !important; border-left: 18px solid #002B5B !important;
-            background: linear-gradient(135deg, #f8faff 0%, #fcfdfe 100%) !important;
-            margin: 60px 0 !important;
-            box-shadow: 0 25px 60px -12px rgba(0, 43, 91, 0.08) !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            margin: 80px 0 !important;
             position: relative !important;
           }
-          .article-content .summary-box::before {
-            content: "💡 AI INSIGHT RE-MAP";
-            position: absolute; top: -16px; left: 30px;
-            background: linear-gradient(135deg, #002B5B, #1d4ed8);
-            color: white; font-size: 10px; font-weight: 900;
-            padding: 5px 18px; border-radius: 20px; letter-spacing: 0.15em;
-            box-shadow: 0 4px 15px rgba(0,43,91,0.3);
+          
+          /* 10번 스타일 헤더 보정 (Rocket Emoji 등) */
+          .article-content .summary-box h2,
+          .article-content .summary-box h3 {
+            font-size: 2rem !important;
+            color: #0F172A !important;
+            border-top: 1px solid #F1F5F9 !important;
+            border-bottom: none !important;
+            padding-top: 40px !important;
+            padding-bottom: 0 !important;
+            margin-bottom: 30px !important;
+            letter-spacing: -0.03em !important;
           }
-          .article-content .summary-box li {
-              font-size: 1.05rem !important; font-weight: 700 !important;
-              color: #1e293b !important; margin-bottom: 14px !important;
-              padding-left: 8px !important; border-left: 3px solid #002B5B !important;
+
+          /* CTA 버튼 (그린 솔리드 스타일) */
+          .article-content .cta-button {
+            display: flex !important; width: fit-content !important; min-width: 280px !important;
+            margin: 100px auto 40px auto !important; justify-content: center !important;
+            background: #22C55E !important; color: white !important;
+            padding: 22px 40px !important; border-radius: 12px !important;
+            font-size: 14px !important; font-weight: 900 !important;
+            text-transform: uppercase !important; letter-spacing: 0.15em !important;
+            text-decoration: none !important; transition: all 0.3s ease !important;
+            box-shadow: 0 20px 40px -10px rgba(34, 197, 94, 0.4) !important;
           }
+          .article-content .cta-button:hover { 
+            transform: translateY(-5px) !important;
+            filter: brightness(1.1) !important;
+          }
+
+          .body-logo { display: block !important; max-width: 250px !important; margin: 80px auto !important; }
         ` }} />
       </article>
 
-      {/* Recommended Reports (AI Based) - MSN Style */}
-      <section className="bg-slate-50 py-32 border-t border-slate-100 italic">
-        <div className="max-w-5xl mx-auto px-6">
-            <div className="flex flex-col gap-2 mb-16 border-l-4 border-deep-navy pl-8">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Recommended Reports.</h3>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed">AI가 실시간 매칭한 유사 지원사업 인텔리전스</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-                {relatedPosts.map((rPost: any) => (
-                    <Link href={`/article/${rPost.id}`} key={rPost.id} className="group flex flex-col bg-white rounded-[40px] p-6 shadow-sm hover:shadow-[0_30px_60px_-10px_rgba(0,0,0,0.1)] transition-all border border-slate-100 hover:border-white">
-                        <div className="aspect-[16/10] rounded-[30px] overflow-hidden mb-6 border-2 border-slate-50">
-                            <img 
-                                src={rPost.image_url} 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                alt="thumb"
-                                onError={(e: any) => e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'}
-                            />
-                        </div>
-                        <div className="space-y-4 px-2">
-                            <span className="text-[9px] font-black text-deep-navy bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{rPost.category}</span>
-                            <h4 className="font-extrabold text-slate-800 text-lg leading-snug line-clamp-2 group-hover:text-deep-navy transition-colors tracking-tight">{rPost.title}</h4>
-                            <div className="pt-4 border-t border-slate-50 text-[10px] text-slate-300 font-bold uppercase tracking-widest flex justify-between items-center">
-                                <span>기틀 리포터</span>
-                                <span>{new Date(rPost.created_at).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                    </Link>
-                ))}
-                {relatedPosts.length === 0 && (
-                  <div className="col-span-3 text-center py-20 bg-white rounded-3xl opacity-30 italic font-medium text-slate-400 border-2 border-dashed border-slate-100">유사한 분석 리포트가 아직 준비되지 않았습니다.</div>
-                )}
-            </div>
-        </div>
-      </section>
-
-      {/* Footer Branding */}
-      <footer className="w-full bg-slate-900 py-32 text-white">
-        <div className="max-w-4xl mx-auto px-6 text-center space-y-12">
-            <h2 className="text-4xl font-black italic tracking-tighter">Giteul.</h2>
-            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">Data-driven business media for entrepreneurs.</p>
-            <Link href="/" className="inline-block border border-white/20 px-10 py-4 rounded-full text-xs font-black uppercase tracking-[0.2em] hover:bg-white hover:text-deep-navy transition-all">Back to Portal</Link>
-        </div>
+      {/* Footer */}
+      <footer className="w-full bg-slate-900 py-32 text-white text-center">
+          <h2 className="text-4xl font-black italic tracking-tighter mb-8">Giteul Media.</h2>
+          <Link href="/" className="inline-block border border-white/20 px-10 py-4 rounded-full text-xs font-black uppercase tracking-widest hover:bg-white hover:text-deep-navy transition-all">Back to Portal</Link>
       </footer>
     </div>
   );

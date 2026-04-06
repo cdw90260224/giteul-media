@@ -14,7 +14,43 @@ const FETCH_HEADERS = {
 
 type CategoryType = '정부지원공고' | 'AI/테크 트렌드' | '기업/마켓 뉴스' | '글로벌 뉴스';
 
-// Scrapers from existing logic...
+// [1순위 강제 매칭 로고 테이프]
+const BRAND_LOGOS: Record<string, string> = {
+  'KOREA_GOV': 'https://www.mss.go.kr/images/common/logo.png', // 대한민국 정부 공식 로고 (태극)
+  'SAMSUNG': 'https://logo.clearbit.com/samsung.com',
+  'NAVER': 'https://logo.clearbit.com/naver.com',
+  'KAKAO': 'https://logo.clearbit.com/kakao.com',
+  'HYUNDAI': 'https://logo.clearbit.com/hyundai.com',
+  'OPENAI': 'https://logo.clearbit.com/openai.com',
+  'MICROSOFT': 'https://logo.clearbit.com/microsoft.com',
+  'GOOGLE': 'https://logo.clearbit.com/google.com',
+  'TECHCRUNCH': 'https://logo.clearbit.com/techcrunch.com',
+};
+
+async function getBrandLogo(title: string, agency: string): Promise<string | null> {
+  const combined = (title + ' ' + agency).toUpperCase();
+
+  // Case 1: 대한민국 정부/공공기관 키워드 (정부 로고 강제)
+  if (['중소벤처기업부', '창업진흥원', '정부', '공고', '지나원', '혁신경제', '기금', '시청', '구청'].some(k => combined.includes(k))) {
+    return BRAND_LOGOS.KOREA_GOV;
+  }
+
+  // Case 2: 주요 브랜드 키워드 (하드코딩)
+  if (['삼성', 'SAMSUNG', 'C-LAB'].some(k => combined.includes(k))) return BRAND_LOGOS.SAMSUNG;
+  if (['네이버', 'NAVER'].some(k => combined.includes(k))) return BRAND_LOGOS.NAVER;
+  if (['카카오', 'KAKAO'].some(k => combined.includes(k))) return BRAND_LOGOS.KAKAO;
+  if (['OPENAI', 'GPT', 'CHATGPT'].some(k => combined.includes(k))) return BRAND_LOGOS.OPENAI;
+  if (['MICROSOFT', 'MS '].some(k => combined.includes(k))) return BRAND_LOGOS.MICROSOFT;
+  if (['GOOGLE', '구글'].some(k => combined.includes(k))) return BRAND_LOGOS.GOOGLE;
+  
+  // Case 3: 다이내믹 도메인 매칭 (Clearbit)
+  const domainMatch = combined.match(/([A-Z0-9.-]+\.[A-Z]{2,})/i);
+  if (domainMatch) return `https://logo.clearbit.com/${domainMatch[1]}?size=800`;
+
+  return null;
+}
+
+// Scrapers
 async function scrapeKStartup(): Promise<any[]> {
   const TARGET_URL = 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do';
   const response = await fetch(TARGET_URL, { headers: FETCH_HEADERS, cache: 'no-store' });
@@ -22,21 +58,26 @@ async function scrapeKStartup(): Promise<any[]> {
   const html = await response.text();
   const $ = cheerio.load(html);
   const notices: any[] = [];
+  
   $('li, .card, .item, .box').each((_, el) => {
-    const textContent = $(el).text().replace(/\s+/g, ' ').trim();
-    const htmlContent = $(el).html() || '';
     let title = $(el).find('.tit, p.tit, h4, strong').first().text().trim();
     if (!title || title.length < 5) return;
-    const snMatch = htmlContent.match(/go_view\('?(\d+)'?\)/) || $(el).find('a').attr('onclick')?.match(/go_view\('?(\d+)'?\)/);
+    
+    const onClick = $(el).find('a').attr('onclick') || '';
+    const snMatch = onClick.match(/go_view\('?(\d+)'?\)/);
     if (!snMatch) return;
+
+    const textContent = $(el).text();
     const dateRegex = /(?:마감일자|접수마감|마감)\s*[:\s]*(\d{4}[-./]\d{2}[-./]\d{2})/;
     const deadlineRaw = textContent.match(dateRegex)?.[1]?.replace(/[./]/g, '-') ?? null;
+    const agency = textContent.match(/(?:소관부처|주관기관|기관명)\s*([가-힣A-Za-z0-9]+원?)/)?.[1] ?? '창업진흥원';
+    
     notices.push({
       title,
-      agency: textContent.match(/(?:소관부처|주관기관|기관명)\s*([가-힣A-Za-z0-9]+원?)/)?.[1] ?? '창업진흥원',
-      deadline_date: deadlineRaw ? new Date(deadlineRaw).toISOString().split('T')[0] : null,
+      agency,
+      deadline_date: deadlineRaw,
       notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
-      source_type: '정부지원공고' as CategoryType,
+      source_type: '정부지원공고' as CategoryType
     });
   });
   return notices;
@@ -45,106 +86,81 @@ async function scrapeKStartup(): Promise<any[]> {
 async function scrapeTechNews(): Promise<any[]> {
   try {
     const RSS_URL = 'https://techcrunch.com/feed/';
-    const res = await fetch(RSS_URL, { headers: { 'User-Agent': FETCH_HEADERS['User-Agent'] }, cache: 'no-store' });
+    const res = await fetch(RSS_URL, { headers: FETCH_HEADERS, cache: 'no-store' });
     if (!res.ok) return [];
     const xml = await res.text();
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 15);
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 5);
     const news: any[] = [];
     for (const item of items) {
       const raw = item[1];
-      const title = raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] ?? raw.match(/<title>(.*?)<\/title>/)?.[1] ?? '';
-      const link = raw.match(/<link>(.*?)<\/link>/)?.[1] ?? '';
-      const pubDate = raw.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? '';
-      if (!title || !link) continue;
-      news.push({
-        title: title.trim(),
-        agency: 'TechCrunch',
-        published_date: new Date(pubDate).toISOString().split('T')[0],
-        notice_url: link.trim(),
-        source_type: 'AI/테크 트렌드' as CategoryType,
-      });
+      const title = raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] || raw.match(/<title>(.*?)<\/title>/)?.[1] || '';
+      const link = raw.match(/<link>(.*?)<\/link>/)?.[1] || '';
+      const pubDate = raw.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || '';
+      news.push({ title: title.trim(), agency: 'TechCrunch', notice_url: link.trim(), source_type: 'AI/테크 트렌드' as CategoryType });
     }
     return news;
   } catch { return []; }
 }
 
 async function isDuplicate(url: string, title: string) {
-    const { data: byUrl } = await supabase.from('posts').select('id').eq('notice_url', url).maybeSingle();
-    if (byUrl) return true;
-    const { data: byTitle } = await supabase.from('posts').select('id').eq('title', title).maybeSingle();
-    return !!byTitle;
+  const { data } = await supabase.from('posts').select('id').or(`notice_url.eq."${url}",title.eq."${title}"`).maybeSingle();
+  return !!data;
 }
 
-function buildPrompt(item: any): string {
-  const isNotice = item.source_type === '정부지원공고';
-  const catColor = isNotice ? '#1d4ed8' : '#7c3aed';
+function buildPrompt(item: any, brandLogoUrl: string | null): string {
   return `
-# Role: 대한민국 창업 생태계 및 글로벌 딥테크 전문 분석 기자
-# Task: [원본 데이터]를 바탕으로 창업가를 위한 '전략 리포트' 리포트를 HTML 구조로 작성하라.
+# Role: 대한민국 창업 및 테크 수석 분석 기자 (기틀 미디어)
+# Task: [원본 데이터]를 바탕으로 '전문 분석 리포트'를 집필하라.
 
 [원본 데이터]
 - 제목: ${item.title}
-- 발행/소관기관: ${item.agency}
-- 카테고리: ${item.source_type}
-${isNotice ? `- 마감일: ${item.deadline_date ?? '공고문 확인 요망'}` : `- 발행일: ${item.published_date ?? '최근'}`}
-- 원문 링크: ${item.notice_url}
+- 기관/회사: ${item.agency}
+- 공식 로고/이미지: ${brandLogoUrl || '없음'}
 
-[구조]: 1. [AI INSIGHT RE-MAP] (요약박스), 2. 상세 리포트, 3. 창업가 맞춤 전략, 4. 팩트 체크, 5. 공식 출처 버튼.
-[응답]: JSON 반환 (title, summary, category, content, notice_url, deadline_date, insight_summary, image_url). 백틱 없이.
+[핵심 명령: 이미지 선정]
+1. '공식 로고/이미지'가 있다면 무조건 이를 'image_url'로 사용하라.
+2. 로고가 없을 때만 고해상도 Unsplash 이미지를 찾아 할당하라. 
+
+[집필 구조 (10번 프레임리스 스타일)]
+- 인용구(>) 형식의 짧은 요약 리드문.
+- <div class="summary-box"> 섹션 (AI Insight).
+- ## 1. 상세 리포트 / ## 2. 창업자 맞춤 전략 / ## 3. 팩트 체크.
+
+[응답 포맷]: JSON (title, summary, category, content, notice_url, deadline_date, insight_summary, image_url). 백틱 없이.
 `;
 }
 
 export async function POST(request: Request) {
   const genAI = new GoogleGenerativeAI(GEMINI_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   
   try {
-    // 1. Scrape all
     const [notices, news] = await Promise.all([scrapeKStartup(), scrapeTechNews()]);
-    
-    // 2. Plan Dispatch (E.g. 3 notices, 2 news per run)
-    const targetNotices = [];
-    for (const n of notices) {
-        if (!(await isDuplicate(n.notice_url, n.title))) targetNotices.push(n);
-        if (targetNotices.length >= 3) break;
-    }
-    
-    const targetNews = [];
-    for (const n of news) {
-        if (!(await isDuplicate(n.notice_url, n.title))) targetNews.push(n);
-        if (targetNews.length >= 2) break;
-    }
-
-    const targets = [...targetNotices, ...targetNews];
-    if (targets.length === 0) return NextResponse.json({ message: 'No new content found' });
-
+    const targets = [...notices, ...news];
     const results = [];
+
     for (const item of targets) {
+        if (await isDuplicate(item.notice_url, item.title)) continue;
+        if (results.length >= 2) break;
+
         try {
-            const prompt = buildPrompt(item);
+            const logoUrl = await getBrandLogo(item.title, item.agency);
+            const prompt = buildPrompt(item, logoUrl);
             const result = await model.generateContent(prompt);
             let jsonText = result.response.text().trim();
             jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
             const post = JSON.parse(jsonText);
-            post.created_at = new Date().toISOString();
-            if (!post.deadline_date) post.deadline_date = item.deadline_date ?? null;
             
-            // Server-side Superuser Client (RLS 우회)
-            const supabaseAdmin = createClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.SUPABASE_SERVICE_ROLE_KEY!
-            );
+            post.created_at = new Date().toISOString();
+            if (logoUrl) post.image_url = logoUrl; // 강제 집행
 
-            const { data, error } = await supabaseAdmin.from('posts').insert([post]).select();
+            const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+            const { error } = await supabaseAdmin.from('posts').insert([post]);
             if (!error) results.push(post.title);
         } catch (e) { console.error('Gen Error:', e); }
     }
 
-    return NextResponse.json({ 
-        message: `Batch Success: ${results.length} articles generated`,
-        generated: results 
-    });
-
+    return NextResponse.json({ message: `Success: ${results.length}`, generated: results });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

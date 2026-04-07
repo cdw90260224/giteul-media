@@ -40,7 +40,7 @@ async function generateStrategicContent(title: string, agency: string) {
         jsonText = (msg.content[0] as any).text;
     } else if (GEMINI_KEY) {
         const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const result = await model.generateContent(prompt);
         jsonText = result.response.text();
     }
@@ -48,7 +48,8 @@ async function generateStrategicContent(title: string, agency: string) {
     return JSON.parse(jsonText);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  console.log(`[API TRIGGER] /api/update-backlog (GET) triggered at ${new Date().toISOString()}`);
   const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   
   try {

@@ -68,7 +68,9 @@ serve(async (req) => {
         const resData = await geminiRes.json();
         let jsonText = resData.candidates[0].content.parts[0].text.trim();
         jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+        // [2026-04-07 UPDATE] Ensure category strictly follows the predefined mapping
         const article = JSON.parse(jsonText);
+        article.category = item.category; 
         article.created_at = new Date().toISOString();
         
         await supabase.from('posts').insert([article]);

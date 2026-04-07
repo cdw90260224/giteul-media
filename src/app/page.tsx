@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase';
 const CAT_CONFIG: Record<string, { bg: string; text: string; border: string; label: string }> = {
   '정부지원공고':  { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',  label: 'Gov Strategy' },
   'AI/테크 트렌드': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
+  'AI/Tech':      { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
+  'ai/tech':      { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
   '기업/마켓 뉴스': { bg: 'bg-teal-50',  text: 'text-teal-700',  border: 'border-teal-200',  label: 'Market' },
   '글로벌 뉴스':   { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  label: 'Global' },
 };
@@ -56,7 +58,15 @@ export default function Home() {
     } catch { alert('네트워크 오류'); } finally { setGenerating(false); }
   };
 
-  const filteredItems = activeCategory === '전체' ? newsItems : newsItems.filter(i => i.category === activeCategory);
+  const filteredItems = activeCategory === '전체' 
+    ? newsItems 
+    : newsItems.filter(i => {
+        // [Synonym Mapping] Unify AI/Tech variations in filter
+        if (activeCategory === 'AI/테크 트렌드') {
+            return ['AI/테크 트렌드', 'AI/Tech', 'ai/tech', 'AI/테크'].includes(i.category);
+        }
+        return i.category === activeCategory;
+    });
 
   const heroMain = filteredItems.find(i => i.category === '정부지원공고') || filteredItems[0] || FALLBACK_ITEMS[0];
   const heroSide = filteredItems.filter(i => i.id !== heroMain.id).slice(0, 4);
@@ -133,7 +143,7 @@ export default function Home() {
                   {heroMain.title}
                 </h2>
               </Link>
-              <p className="text-white/70 text-xl font-medium line-clamp-2 leading-relaxed max-w-2xl italic font-serif">
+              <p className="text-white/80 text-xl font-medium line-clamp-2 leading-[1.6] max-w-2xl tracking-[-0.015em] font-sans">
                 {heroMain.summary}
               </p>
             </div>

@@ -166,23 +166,36 @@ export async function POST(request: Request) {
   try {
     const { targetCategory } = await request.json(); 
     
+    // [Throttling] General news limit: 5 per day to save API quota
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { count: currentGeneralCount } = await supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .in('category', ['기업/마켓 뉴스', '글로벌 뉴스'])
+      .gte('created_at', todayStart.toISOString());
+    
+    const quotaExceeded = (currentGeneralCount || 0) >= 5;
+
     let targets: any[] = [];
     if (targetCategory === '정부지원공고') {
         targets = await scrapeKStartup(); 
     } else if (targetCategory === '기업/마켓 뉴스') {
-        targets = await scrapeMarketNews();
+        targets = quotaExceeded ? [] : await scrapeMarketNews();
     } else if (targetCategory === '글로벌 뉴스') {
-        targets = await scrapeGlobalNews();
+        targets = quotaExceeded ? [] : await scrapeGlobalNews();
     } else if (targetCategory === 'AI/테크 트렌드') {
         targets = await scrapeTechNews();
     } else {
-        const [notices, tech, market, global] = await Promise.all([
-          scrapeKStartup(), 
-          scrapeTechNews(),
-          scrapeMarketNews(),
-          scrapeGlobalNews()
-        ]);
-        targets = [...tech, ...market, ...global, ...notices]; 
+        const fetchTasks = [scrapeKStartup(), scrapeTechNews()];
+        if (!quotaExceeded) {
+            fetchTasks.push(scrapeMarketNews());
+            fetchTasks.push(scrapeGlobalNews());
+        } else {
+            console.log(`[QUOTA] General news quota exceeded (${currentGeneralCount}). Skipping Market/Global scrapers.`);
+        }
+        const fetched = await Promise.all(fetchTasks);
+        targets = fetched.flat();
     }
 
     const results = [];

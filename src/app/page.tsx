@@ -59,7 +59,7 @@ export default function Home() {
   };
 
   const filteredItems = activeCategory === '전체' 
-    ? newsItems 
+    ? newsItems.filter(i => !['기업/마켓 뉴스', '글로벌 뉴스'].includes(i.category))
     : newsItems.filter(i => {
         // [Synonym Mapping] Unify AI/Tech variations in filter
         if (activeCategory === 'AI/테크 트렌드') {
@@ -67,6 +67,8 @@ export default function Home() {
         }
         return i.category === activeCategory;
     });
+
+  const tickerItems = newsItems.filter(i => !['기업/마켓 뉴스', '글로벌 뉴스'].includes(i.category)).slice(0, 10);
 
   const heroMain = filteredItems.find(i => i.category === '정부지원공고') || filteredItems[0] || FALLBACK_ITEMS[0];
   const heroSide = filteredItems.filter(i => i.id !== heroMain.id).slice(0, 4);
@@ -109,7 +111,7 @@ export default function Home() {
             <span className="bg-red-600 text-white text-[11px] font-black px-3 py-1.5 rounded select-none shrink-0 animate-pulse uppercase tracking-[0.2em] italic">Breaking News Focus</span>
             <div className="relative flex-1 overflow-hidden h-10 flex items-center">
                 <div className="animate-marquee whitespace-nowrap flex gap-24 items-center">
-                    {newsItems.slice(0, 10).map((n, idx) => (
+                    {tickerItems.map((n, idx) => (
                         <Link key={idx} href={`/article/${n.id}`} className="text-[15.5px] font-black hover:text-blue-200 transition-colors flex items-center gap-4">
                             <span className="opacity-20 font-black text-xl">|</span>
                             <span>{n.title}</span>

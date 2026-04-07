@@ -59,7 +59,7 @@ export default function Home() {
   };
 
   const filteredItems = activeCategory === '전체' 
-    ? newsItems.filter(i => !['기업/마켓 뉴스', '글로벌 뉴스'].includes(i.category))
+    ? newsItems.filter(i => i.category === '정부지원공고' && !i.title.startsWith('[전략]'))
     : newsItems.filter(i => {
         // [Synonym Mapping] Unify AI/Tech variations in filter
         if (activeCategory === 'AI/테크 트렌드') {
@@ -68,7 +68,7 @@ export default function Home() {
         return i.category === activeCategory;
     });
 
-  const tickerItems = newsItems.filter(i => !['기업/마켓 뉴스', '글로벌 뉴스'].includes(i.category)).slice(0, 10);
+  const tickerItems = newsItems.filter(i => i.category === '정부지원공고' && !i.title.startsWith('[전략]')).slice(0, 10);
 
   const heroMain = filteredItems.find(i => i.category === '정부지원공고') || filteredItems[0] || FALLBACK_ITEMS[0];
   const heroSide = filteredItems.filter(i => i.id !== heroMain.id).slice(0, 4);
@@ -141,7 +141,7 @@ export default function Home() {
                 <span className="text-[11px] font-black text-blue-300 uppercase tracking-widest italic animate-pulse">Deep Strategy Analysis</span>
               </div>
               <Link href={`/article/${heroMain.id}`}>
-                <h2 className="text-4xl lg:text-[52px] font-black text-white leading-[1.05] tracking-tighter hover:underline decoration-white/20 underline-offset-8 transition-all">
+                <h2 className="text-3xl lg:text-[42px] font-black text-white leading-[1.2] tracking-tighter hover:underline decoration-white/20 underline-offset-8 transition-all line-clamp-3">
                   {heroMain.title}
                 </h2>
               </Link>

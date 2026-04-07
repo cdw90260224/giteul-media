@@ -57,10 +57,43 @@ serve(async (req) => {
         const { data: existing } = await supabase.from('posts').select('id').eq('notice_url', item.notice_url).maybeSingle();
         if (existing) continue;
 
-        // Generate via Gemini
-        const prompt = `Write a professional B2B news report in HTML for: ${item.title}. Source: ${item.agency}. Category: ${item.category}. URL: ${item.notice_url}. Return JSON (title, summary, category, content, notice_url, deadline_date, insight_summary, image_url).`;
+        // [Absolute Standard] Shinhan Financial Group Style (Image 10)
+        const isStrategy = item.category === '정부지원공고';
+        const role = isStrategy ? '창업 합격 전략가' : '테크 경제 분석 기자';
+        const titlePrefix = isStrategy ? '[전략]' : '[뉴스]';
         
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const prompt = `
+# Role: 대한민국 창업 및 ${role}
+# Task: '신한금융 스타일(Image 10)' 전문 리포트 작성.
+# Headline: ${titlePrefix} ${item.title} ${isStrategy ? '합격을 위한 실전 공략' : ''}
+
+[Categorization Guide]
+- Category: ${item.category} (Source: ${item.agency})
+
+[집필 필수 구조]
+1. 제목: ${titlePrefix} ${item.title}
+2. 리드문: 3~4줄 인용구(>) 형식.
+3. 인사이트 박스: 반드시 <div class="summary-box"> 태그 래핑.
+   - 제목: [${isStrategy ? 'STRATEGIC UPGRADE' : 'MARKET INSIGHT'}] 🚀 ${item.title}
+4. 본문 세분화: 
+   ${isStrategy ? `
+   ## 1. 상세 리포트
+   ## 2. 사업계획서 작성 전략 (필수)
+      - [핵심 전략] 합격 포인트 1줄 요약
+      - [실전 작성 가이드] PSST 항목별 공략
+      - [치트키] 필수 키워드 (#태그)
+   ## 3. 팩트 체크
+   ` : `
+   ## 1. 상세 분석 리포트
+   ## 2. 시장 파급 효과 및 창업 대응 방안
+   ## 3. 핵심 팩트 체크
+   `}
+5. 이미지: "image_url" 필드는 빈 값("")으로 비워둘 것.
+
+[포맷]: JSON {title, summary, category, content, notice_url}. 마크다운 없이 순수 JSON만 응답하라.
+`;
+        
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })

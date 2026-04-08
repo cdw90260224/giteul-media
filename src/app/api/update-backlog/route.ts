@@ -40,7 +40,7 @@ async function generateStrategicContent(title: string, agency: string) {
         jsonText = (msg.content[0] as any).text;
     } else if (GEMINI_KEY) {
         const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const result = await model.generateContent(prompt);
         jsonText = result.response.text();
     }

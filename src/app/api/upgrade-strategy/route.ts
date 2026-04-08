@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 `;
 
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // [지능형 Retry 로직: 429 에러 방어]
     let result;

@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function ArticleDetailClient({ id }: { id: string }) {
   const [post, setPost] = useState<any>(null);
@@ -99,7 +101,11 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       </div>
 
       <article className="max-w-4xl mx-auto px-6 pb-60">
-        <div className="prose prose-slate max-w-none article-content" dangerouslySetInnerHTML={{ __html: post.content }} />
+        <div className="prose prose-slate max-w-none article-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {post.content}
+          </ReactMarkdown>
+        </div>
 
         {isGovSupport && !isStrategyPost && (
             <div className="mt-24 p-12 bg-deep-navy rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">

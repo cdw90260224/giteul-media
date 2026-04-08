@@ -1,39 +1,44 @@
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
-const dotenv = require('dotenv');
 
-// Load environment variables manually to guarantee they match .env.local
-const envConfig = dotenv.parse(fs.readFileSync('.env.local'));
+const env = fs.readFileSync('.env.local', 'utf8');
+const getEnv = (key) => env.match(new RegExp(`${key}=(.*)`))?.[1]?.trim();
 
-const supabaseUrl = envConfig['NEXT_PUBLIC_SUPABASE_URL'];
-const supabaseKey = envConfig['SUPABASE_SERVICE_ROLE_KEY'];
+const supabase = createClient(getEnv('SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'));
 
-console.log("URL:", supabaseUrl);
-console.log("KEY LAST CHARS:", supabaseKey ? supabaseKey.slice(-10) : "MISSING");
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-async function testDelete() {
-  const { data, error } = await supabase.from('posts').select('id, title');
-  if (error) {
-    console.error("SELECT ERROR:", error);
-    return;
-  }
-  
-  console.log("POSTS:", data);
-  
-  if (data && data.length > 0) {
-    const p = data[0];
-    console.log("Deleting id:", p.id);
-    const { error: delError } = await supabase.from('posts').delete().eq('id', p.id);
-    if (delError) {
-      console.error("DELETE ERROR:", delError);
-    } else {
-      console.log("Deleted successfully! Checking again...");
-      const { data: data2 } = await supabase.from('posts').select('id');
-      console.log("Remaining POSTS:", data2);
+async function deleteTodaysPosts() {
+    const todayKST = new Date();
+    todayKST.setUTCHours(todayKST.getUTCHours() + 9);
+    // Get start of today KST -> UTC
+    const startOfTodayUTC = new Date(Date.UTC(todayKST.getUTCFullYear(), todayKST.getUTCMonth(), todayKST.getUTCDate() - 1, 15, 0, 0));
+    
+    console.log("Checking posts >= ", startOfTodayUTC.toISOString());
+    const { data: posts, error: fetchErr } = await supabase
+        .from('posts')
+        .select('id, title, notice_url, created_at')
+        .gte('created_at', startOfTodayUTC.toISOString());
+        
+    if (fetchErr) {
+        console.error("Fetch error:", fetchErr);
+        return;
     }
-  }
+    
+    console.log(`Found ${posts.length} posts created today.`);
+    posts.forEach(p => console.log(` - ${p.title}\n   [URL: ${p.notice_url}]\n   (${p.created_at})`));
+
+    if (posts.length > 0) {
+        const ids = posts.map(p => p.id);
+        const { error: delErr } = await supabase
+            .from('posts')
+            .delete()
+            .in('id', ids);
+            
+        if (delErr) {
+            console.error("Delete error:", delErr);
+        } else {
+            console.log("Deleted successfully.");
+        }
+    }
 }
 
-testDelete();
+deleteTodaysPosts();

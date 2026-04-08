@@ -17,26 +17,47 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     
     // --- SCRAPING LOGIC ---
-    // 1. K-Startup
-    const ksRes = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { headers: FETCH_HEADERS });
-    const ksHtml = await ksRes.text();
-    const $ks = cheerio.load(ksHtml);
     const potentialItems: any[] = [];
-    
-    $ks('li, .card, .item, .box').each((_, el) => {
-        const text = $ks(el).text().replace(/\s+/g, ' ');
-        const html = $ks(el).html() || '';
-        const title = $ks(el).find('.tit, p.tit, h4, strong').first().text().trim();
-        const snMatch = html.match(/go_view\('?(\d+)'?\)/);
-        if (title && snMatch) {
-            potentialItems.push({
-                title,
-                agency: text.match(/(?:소관부처|주관기관|기관명)\s*([가-힣A-Za-z0-9]+원?)/)?.[1] ?? '창업진흥원',
-                notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
-                category: '정부지원공고'
-            });
+
+    // 1. K-Startup
+    try {
+        const ksRes = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { headers: FETCH_HEADERS });
+        const ksHtml = await ksRes.text();
+        const $ks = cheerio.load(ksHtml);
+        
+        $ks('li, .card, .item, .box').each((_, el) => {
+            const text = $ks(el).text().replace(/\s+/g, ' ');
+            const html = $ks(el).html() || '';
+            const title = $ks(el).find('.tit, p.tit, h4, strong').first().text().trim();
+            const snMatch = html.match(/go_view\('?(\d+)'?\)/);
+            if (title && snMatch) {
+                potentialItems.push({
+                    title,
+                    agency: text.match(/(?:소관부처|주관기관|기관명)\s*([가-힣A-Za-z0-9]+원?)/)?.[1] ?? '창업진흥원',
+                    notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
+                    category: '정부지원공고'
+                });
+            }
+        });
+
+        if (potentialItems.filter(i => i.category === '정부지원공고').length === 0) {
+            await supabase.from('posts').insert([{
+                title: `[자동 수집 장애] K-Startup 공고 구조 변경 감지 (데이터 0건)`,
+                category: '시스템알림',
+                content: `<p>K-Startup에서 데이터를 가져오지 못했습니다. 크롤링/파싱 로직을 점검해주세요.</p>`,
+                notice_url: 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do',
+                created_at: new Date().toISOString(),
+            }]);
         }
-    });
+    } catch (scrapingErr: any) {
+        await supabase.from('posts').insert([{
+            title: `[자동 수집 오류] K-Startup 접속 실패`,
+            category: '시스템알림',
+            content: `<p>K-Startup 접속 중 통신 오류가 발생했습니다: ${scrapingErr.message}</p>`,
+            notice_url: 'https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do',
+            created_at: new Date().toISOString(),
+        }]);
+    }
 
     // 2. TechCrunch RSS
     const tcRes = await fetch('https://techcrunch.com/feed/', { headers: FETCH_HEADERS });
@@ -51,9 +72,20 @@ serve(async (req) => {
         }
     }
 
-    // --- BATCH PROCESS (3~5 items) ---
+    // --- API QUOTA & PRIORITY RE-EVALUATION ---
+    const now = new Date();
+    const kstHour = (now.getUTCHours() + 9) % 24;
+    
+    let itemsToProcess = potentialItems;
+    if (kstHour < 9) {
+        const govItems = potentialItems.filter(item => item.category === '정부지원공고');
+        const techItems = potentialItems.filter(item => item.category !== '정부지원공고');
+        itemsToProcess = [...govItems, ...techItems];
+    }
+
+    // --- BATCH PROCESS ---
     const results = [];
-    for (const item of potentialItems) {
+    for (const item of itemsToProcess) {
         const { data: existing } = await supabase.from('posts').select('id').eq('notice_url', item.notice_url).maybeSingle();
         if (existing) continue;
 
@@ -93,23 +125,46 @@ serve(async (req) => {
 [포맷]: JSON {title, summary, category, content, notice_url}. 마크다운 없이 순수 JSON만 응답하라.
 `;
         
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-        const resData = await geminiRes.json();
-        let jsonText = resData.candidates[0].content.parts[0].text.trim();
-        jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-        // [2026-04-07 UPDATE] Ensure category strictly follows the predefined mapping
-        const article = JSON.parse(jsonText);
-        article.category = item.category; 
-        article.created_at = new Date().toISOString();
+        try {
+            const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!geminiRes.ok) {
+                throw new Error(`API Error: ${geminiRes.status} ${await geminiRes.text()}`);
+            }
+
+            const resData = await geminiRes.json();
+            if (!resData.candidates || resData.candidates.length === 0) {
+                throw new Error("No candidates received from Gemini.");
+            }
+
+            let jsonText = resData.candidates[0].content.parts[0].text.trim();
+            jsonText = jsonText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+            
+            // [2026-04-07 UPDATE] Ensure category strictly follows the predefined mapping
+            const article = JSON.parse(jsonText);
+            article.category = item.category; 
+            article.created_at = new Date().toISOString();
+            
+            await supabase.from('posts').insert([article]);
+            results.push(article.title);
+        } catch (apiError: any) {
+            console.error("Gemini Generation Error:", apiError.message);
+            // 에러를 뱉고 멈추지 않고 임시 저장 상태로 남김
+            await supabase.from('posts').insert([{
+                title: `[발행 실패/임시저장] ${titlePrefix} ${item.title}`,
+                category: item.category,
+                content: `<p>본문 자동 생성 중 오류가 발생했습니다 (Gemini API 오류): ${apiError.message}</p>`,
+                notice_url: item.notice_url,
+                created_at: new Date().toISOString(),
+            }]);
+            results.push(`[ERROR] ${item.title}`);
+        }
         
-        await supabase.from('posts').insert([article]);
-        results.push(article.title);
-        
-        if (results.length >= 4) break; // Run 4 items per cycle
+        if (results.length >= 5) break; // 아침 9시 이전 창업 뉴스 5건 최우선 발송을 위해 최대 5건으로 조정
     }
 
     return new Response(JSON.stringify({ 

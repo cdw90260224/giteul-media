@@ -158,6 +158,7 @@ export default function Home() {
                     src={heroMain.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'}
                     className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-[4s]"
                     alt="Headline"
+                    onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#002B5B] via-[#002B5B]/40 to-transparent" />
             </div>
@@ -187,6 +188,7 @@ export default function Home() {
                           src={side.image_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f'} 
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
                           alt="side" 
+                          onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f'; }}
                         />
                     </div>
                     <div className="min-w-0 space-y-1.5 flex-1">
@@ -213,9 +215,10 @@ export default function Home() {
                 >
                   <div className="relative aspect-[16/10] rounded-[2.5rem] overflow-hidden mb-8 border-2 border-slate-50 bg-white">
                     <img 
-                      src={item.image_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f'} 
+                      src={item.image_url || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab'} 
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 grayscale-[0.2] group-hover:grayscale-0" 
                       alt={item.title} 
+                      onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab'; }}
                     />
                   </div>
                   <div className="space-y-4 px-2">

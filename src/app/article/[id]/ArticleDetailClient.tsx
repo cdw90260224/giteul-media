@@ -69,9 +69,25 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isGovSupport = post.category === '정부지원공고';
   const isStrategyPost = post.title.includes('[전략]');
 
+  // D-Day calculation logic
+  const getDDay = () => {
+    if (!post.deadline_date) return null;
+    const today = new Date('2026-04-09'); // User specified today's date
+    const deadline = new Date(post.deadline_date);
+    const diff = deadline.getTime() - today.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600' };
+    if (days < 0) return { label: '마감완료', color: 'bg-slate-400' };
+    if (days <= 7) return { label: `D-${days}`, color: 'bg-orange-500' };
+    return { label: `D-${days}`, color: 'bg-blue-600' };
+  };
+
+  const dDay = getDDay();
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
-      <nav className="w-full bg-white/90 backdrop-blur-xl border-b border-slate-50 sticky top-0 z-50 py-5 px-8">
+      <nav className="w-full bg-white/90 backdrop-blur-xl border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <Link href="/" className="text-3xl font-black text-deep-navy tracking-tighter italic">기틀.</Link>
           <div className="flex items-center gap-6">
@@ -81,26 +97,42 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </nav>
 
-      <header className="max-w-4xl mx-auto px-6 pt-20 pb-16">
-        <div className="space-y-10">
-            <h1 className="text-3xl md:text-4xl lg:text-[52px] font-black text-[#0f172a] leading-[1.05] tracking-tighter border-b-[8px] border-slate-100 pb-12 italic">
+      <header className="max-w-3xl mx-auto px-6 pt-24 pb-16">
+        <div className="space-y-8">
+            {dDay && (
+              <div className="flex items-center gap-3 animate-bounce-subtle">
+                <span className={`${dDay.color} text-white px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
+                  {dDay.label}
+                </span>
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">실시간 마감 임박 알림</span>
+              </div>
+            )}
+
+            <h1 className="text-3xl md:text-4xl font-black text-[#0f172a] leading-[1.2] tracking-tighter italic">
                 {post.title}
             </h1>
-            <div className="py-10 border-l-[12px] border-deep-navy pl-10 bg-slate-50/50 rounded-r-3xl">
-                <p className="text-xl md:text-2xl text-slate-600 font-bold leading-relaxed tracking-tight italic">
-                    {post.summary}
-                </p>
+            
+            <div className="relative mt-12 p-8 md:p-12 bg-slate-50/80 rounded-[2.5rem] border-2 border-slate-100 overflow-hidden group hover:border-blue-200 transition-colors">
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
+                    <span className="text-8xl font-black italic">SUMMARY</span>
+                </div>
+                <div className="relative z-10 space-y-4">
+                  <span className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">Executive Briefing</span>
+                  <p className="text-xl md:text-2xl text-slate-700 font-bold leading-relaxed tracking-tight italic">
+                      {post.summary}
+                  </p>
+                </div>
             </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-6 mb-32">
+      <div className="max-w-5xl mx-auto px-6 mb-32">
         <div className="relative aspect-[21/9] w-full rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-[16px] border-white ring-1 ring-slate-100 bg-slate-50">
           <img src={post.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-1000" alt="Hero" onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; }} />
         </div>
       </div>
 
-      <article className="max-w-4xl mx-auto px-6 pb-60">
+      <article className="max-w-3xl mx-auto px-6 pb-60">
         <div className="prose prose-slate max-w-none article-content">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {post.content}
@@ -137,12 +169,24 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
 
         <style dangerouslySetInnerHTML={{ __html: `
-          .article-content h2 { font-size: 2.5rem !important; margin-top: 120px !important; margin-bottom: 50px !important; color: #0F172A !important; border-top: 2px solid #F1F5F9 !important; padding-top: 60px !important; font-weight: 1000 !important; letter-spacing: -0.04em !important; font-style: italic !important; }
-          .article-content p { font-size: 1.25rem !important; line-height: 2 !important; color: #334155 !important; margin-bottom: 40px !important; font-weight: 500 !important; }
-          .article-content .summary-box { margin: 100px 0 !important; padding: 60px !important; border-radius: 3rem !important; background: #F8FAFC !important; border: 1.5px solid #E2E8F0 !important; }
-          .article-content .summary-box h2 { border: none !important; margin: 0 !important; padding: 0 !important; }
+          @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+          }
+          .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
+          .article-content h2 { font-size: 2.5rem !important; margin-top: 100px !important; margin-bottom: 40px !important; color: #0F172A !important; border-top: 2px solid #F8FAFC !important; padding-top: 50px !important; font-weight: 1000 !important; letter-spacing: -0.04em !important; font-style: italic !important; }
+          .article-content p { font-size: 1.2rem !important; line-height: 1.85 !important; color: #334155 !important; margin-bottom: 30px !important; font-weight: 500 !important; }
+          .article-content table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 50px 0; border: 1px solid #E2E8F0; border-radius: 1.5rem; overflow: hidden; background: white; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); }
+          .article-content th { background: #F8FAFC; color: #64748B; font-weight: 800; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; padding: 20px; border-bottom: 1px solid #E2E8F0; }
+          .article-content td { padding: 20px; font-size: 1rem; color: #1E293B; font-weight: 600; border-bottom: 1px solid #F1F5F9; }
+          .article-content tr:last-child td { border-bottom: none; }
+          .article-content .comment-box { margin-top: 80px; padding: 40px; background: #F1F5F9; border-radius: 2rem; border-left: 8px solid #002B5B; position: relative; }
+          .article-content .comment-box h3 { margin-top: 0 !important; padding-top: 0 !important; border: none !important; font-size: 1.5rem !important; color: #002B5B !important; }
+          .article-content blockquote { margin: 40px 0 !important; padding: 30px 40px !important; background: #F8FAFC !important; border: 1px solid #E2E8F0 !important; border-left: 6px solid #002B5B !important; border-radius: 1.5rem !important; font-style: normal !important; }
+          .article-content blockquote p { margin-bottom: 0 !important; line-height: 1.8 !important; font-size: 1.1rem !important; font-weight: 600 !important; color: #475569 !important; }
         ` }} />
       </article>
+
 
       <footer className="bg-slate-900 py-32 text-center text-white/10 uppercase italic">
           <Link href="/" className="inline-block border border-white/10 px-12 py-5 rounded-full text-xs font-black tracking-[0.4em] hover:bg-white hover:text-deep-navy transition-all text-white/50">Back to Portal Home</Link>

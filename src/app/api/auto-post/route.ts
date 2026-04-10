@@ -3,178 +3,108 @@ import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
-import { getLogoByTitle } from '@/lib/logos';
-import { fetchExternalNews } from '@/lib/news-api';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-const FETCH_HEADERS = { 'User-Agent': 'Mozilla/5.0' };
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const getDeepContext = async (noticeUrl: string): Promise<string> => {
-    try {
-        const response = await fetch(noticeUrl, { headers: FETCH_HEADERS, cache: 'no-store' });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        return $('div.prose, div.article, div.content, #content').text().trim().slice(0, 3000);
-    } catch { return ""; }
-};
+const FETCH_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' };
 
-const scrapeKStartup = async (): Promise<any[]> => {
-  try {
-    const res = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { 
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' },
-      cache: 'no-store' 
-    });
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const notices: any[] = [];
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+// [핵심] 3중 엔진 세이프 가드
+async function callGeminiSafe(prompt: string) {
+    const models = ['gemini-2.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro'];
+    const genAI = new GoogleGenerativeAI(GEMINI_KEY);
     
-    $('a').each((_, el) => {
-      const link = $(el);
-      const attrVal = link.attr('onclick') || link.attr('href') || '';
-      const snMatch = attrVal.match(/pbancSn=(\d+)/) || attrVal.match(/go_view\('?(\d+)'?\)/);
-      if (snMatch) {
-        let title = link.find('p.tit, .tit, dt, strong').first().text().trim();
-        if (!title) title = link.text().trim();
-        
-        // Clean title: remove D-Day, Dates, etc.
-        title = title.replace(/D-\d+|마감일자\s*\d{4}-\d{2}-\d{2}|조회\s*[\d,]+/g, '').replace(/\s+/g, ' ').trim();
-        
-        if (title && title.length > 5 && !notices.find(n => n.sn === snMatch[1])) {
-          notices.push({
-            title,
-            sn: snMatch[1],
-            notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
-          });
+    for (const modelName of models) {
+        console.log(`[AI] Attempting ${modelName}...`);
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            if (text) {
+                console.log(`[AI] SUCCESS with ${modelName}`);
+                return text;
+            }
+        } catch (e: any) {
+            console.error(`[AI] FAILED ${modelName}:`, e.message);
+            if (e.message?.includes('429')) await sleep(2000); // 429일 경우 약간 대기
+            continue;
         }
-      }
-    });
-    return notices;
-  } catch (e) { console.error('Scrape Error:', e); return []; }
-};
-
-const generatePost = async (item: any, deepContext: string) => {
-  const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
-  const prompt = `당신은 최고 수준의 정책 전문 기자입니다. 
-아래 정보를 바탕으로 전문적인 뉴스 리포트를 작성하세요. 
-
-[지시사항]
-1. 형식: JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요.
-2. 기사 본문(content): 마크다운으로 작성하되, 섹션 구분은 ##(H2)를 사용하세요.
-3. 기자 코멘트: 기사 마지막에 '### 기자의 시선' 섹션을 만들고, 내용은 반드시 인용구(> ) 블록으로 작성하세요. HTML 태그는 절대 금지합니다.
-4. 배점 정보가 있다면 표(Table)로 요약하세요.
-
-제목: ${item.title}
-상세: ${deepContext}
-(발행일: 2026. 04. 10. 고정)`;
-
-  const result = await model.generateContent(prompt);
-  const jsonText = result.response.text().replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-  const rawJson = JSON.parse(jsonText);
-  return {
-    title: rawJson.title,
-    summary: rawJson.summary,
-    category: rawJson.category || '\uc815\ubd80\uc9c0\uc6d0\uacf5\uace0',
-    content: rawJson.content,
-    notice_url: item.notice_url,
-    deadline_date: rawJson.deadline || null,
-    image_url: '',
-    created_at: new Date().toISOString()
-  };
-};
-
-const generateStrategicPost = async (item: any, deepContext: string) => {
-  const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
-  const prompt = `분석 리포트를 작성하세요. JSON {title, summary, category, content, notice_url} 형태로만 답하세요.\n제목: ${item.title}\n상세: ${deepContext}`;
-
-  const result = await model.generateContent(prompt);
-  const jsonText = result.response.text().replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-  const rawJson = JSON.parse(jsonText);
-  const titleStr = rawJson.title.indexOf('[전략]') === 0 ? rawJson.title : `[\uc814\ub7b5] ${rawJson.title}`;
-  return {
-    title: titleStr,
-    summary: rawJson.summary,
-    category: '\uc815\ubd80\uc9c0\uc6d0\uacf5\uace0',
-    content: rawJson.content,
-    notice_url: item.notice_url,
-    deadline_date: null,
-    image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f',
-    created_at: new Date().toISOString()
-  };
-};
-
-const generateGeneralPost = async (article: any, targetCategory: string) => {
-  const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
-  const prompt = `전문 기사를 작성하세요. JSON {title, summary, category, content, notice_url} 형태로만 답하세요.\n제목: ${article.title}\n요약: ${article.description}`;
-
-  const result = await model.generateContent(prompt);
-  const jsonText = result.response.text().replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-  const rawJson = JSON.parse(jsonText);
-  return {
-    title: rawJson.title,
-    summary: rawJson.summary,
-    category: targetCategory,
-    content: rawJson.content,
-    notice_url: article.url,
-    deadline_date: null,
-    image_url: article.image || '',
-    created_at: new Date().toISOString()
-  };
-};
+    }
+    throw new Error('All Gemini models failed to respond.');
+}
 
 export async function POST(request: Request) {
+  console.log('--- AUTO-POST PIPELINE START ---');
   try {
-    let body = {};
-    try { body = await request.json(); } catch { body = {}; }
-    const targetCategory = (body as any).targetCategory || '\uc815\ubd80\uc9c0\uc6d0\uacf5\uace0';
-    const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const results = [];
+    const { targetCategory } = await request.json();
+    console.log(`[Target] ${targetCategory}`);
 
-    if (targetCategory === '\uc815\ubd80\uc9c0\uc6d0\uacf5\uace0') {
-      const targets = await scrapeKStartup();
-      for (const item of targets) {
-        if (results.length >= 2) break;
-        const sUrl = item.notice_url + "&mode=strategy";
-        const { data: dup } = await supabase.from('posts').select('id').eq('notice_url', sUrl).maybeSingle();
-        if (dup) continue;
-        const dc = await getDeepContext(item.notice_url);
-        const post = await generateStrategicPost(item, dc);
-        post.notice_url = sUrl;
-        const { error } = await supabaseAdmin.from('posts').insert([post]);
-        if (!error) results.push(post.title);
-      }
-    } else if (targetCategory === '\uc804\uccb4') {
-      const targets = await scrapeKStartup();
-      for (const item of targets) {
-        if (results.length >= 2) break;
-        const { data: dup } = await supabase.from('posts').select('id').eq('notice_url', item.notice_url).maybeSingle();
-        if (dup) continue;
-        const dc = await getDeepContext(item.notice_url);
-        const post = await generatePost(item, dc);
-        const logo = getLogoByTitle(item.title);
-        post.image_url = logo || '';
-        const { error } = await supabaseAdmin.from('posts').insert([post]);
-        if (!error) results.push(post.title);
-      }
-    } else {
-      const externalNews = await fetchExternalNews(targetCategory);
-      for (const article of externalNews) {
-        if (results.length >= 2) break;
-        const { data: dup } = await supabase.from('posts').select('id').eq('notice_url', article.url).maybeSingle();
-        if (dup) continue;
-        const post = await generateGeneralPost(article, targetCategory);
-        const { error } = await supabaseAdmin.from('posts').insert([post]);
-        if (!error) results.push(post.title);
-      }
-    }
-    if (results.length === 0) {
-      return NextResponse.json({ error: 'No new information found matching the criteria.' }, { status: 404 });
+    if (targetCategory === '정부지원공고') {
+      console.log('[Scraper] Accessing K-Startup...');
+      const res = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { headers: FETCH_HEADERS, cache: 'no-store' });
+      const html = await res.text();
+      const $ = cheerio.load(html);
+      const targets: any[] = [];
+
+      $('a').each((_, el) => {
+        const link = $(el);
+        const attrVal = link.attr('onclick') || link.attr('href') || '';
+        const snMatch = attrVal.match(/pbancSn=(\d+)/) || attrVal.match(/go_view\('?(\d+)'?\)/);
+        if (snMatch) {
+          let title = link.find('p.tit, .tit, dt, strong').first().text().trim();
+          if (!title) title = link.text().trim();
+          title = title.replace(/D-\d+|마감일자\s*\d{4}-\d{2}-\d{2}|조회\s*[\d,]+/g, '').replace(/\s+/g, ' ').trim();
+          if (title && title.length > 5 && !targets.find(t => t.sn === snMatch[1])) {
+            targets.push({ title, sn: snMatch[1], url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}` });
+          }
+        }
+      });
+
+      console.log(`[Scraper] Found ${targets.length} candidates.`);
+      if (targets.length === 0) throw new Error('뉴스 소스를 찾을 수 없습니다 (크롤링 실패).');
+
+      // 중복 체크
+      const { data: existing } = await supabase.from('posts').select('title');
+      const filtered = targets.filter(t => !existing?.some(e => e.title.includes(t.title.slice(0, 10)))).slice(0, 1);
+      
+      console.log(`[Filter] ${filtered.length} new items to process.`);
+      if (filtered.length === 0) return NextResponse.json({ message: '이미 최신 기사가 모두 발행되었습니다.' });
+
+      const item = filtered[0];
+      console.log(`[AI] Generating: ${item.title}`);
+      
+      const prompt = `당신은 최고 수준의 기업 분석 기자입니다. JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요. 
+      기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.
+      제목: ${item.title}\n공고URL: ${item.url}\n(발행일: 2026. 04. 10. 고정)`;
+
+      const aiResponse = await callGeminiSafe(prompt);
+      const jsonStr = aiResponse.replace(/```json\s*|```/gi, '').trim();
+      const raw = JSON.parse(jsonStr);
+
+      console.log('[DB] Inserting into Supabase...');
+      const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
+      const { error: insertErr } = await adminClient.from('posts').insert([{
+        title: raw.title,
+        summary: raw.summary,
+        category: '정부지원공고',
+        content: raw.content,
+        notice_url: item.url,
+        deadline_date: raw.deadline || null,
+        created_at: new Date().toISOString()
+      }]);
+
+      if (insertErr) throw insertErr;
+      console.log('[SUCCESS] Post Published!');
+      return NextResponse.json({ message: 'Success' });
     }
 
-    return NextResponse.json({ generated: results });
+    return NextResponse.json({ message: '준비 중인 카테고리입니다.' });
+
   } catch (err: any) {
+    console.error('[CRITICAL ERROR]', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

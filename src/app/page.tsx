@@ -85,9 +85,21 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetCategory: activeCategory })
       });
-      if (res.ok) window.location.reload();
-      else alert('집필 실패. 다시 시도해 주세요.');
-    } catch { alert('네트워크 오류'); } finally { setGenerating(false); }
+      const data = await res.json();
+      if (res.ok) {
+        if (data.code === 'ALREADY_PUBLISHED') {
+          alert('💡 현재 모든 최신 공고가 이미 발행되었습니다. 잠시 후 새로운 소식이 등록되면 다시 시도해 주세요!');
+        } else {
+          window.location.reload();
+        }
+      } else {
+        alert(`집필 실패: ${data.error || 'AI 엔진 응답 처리 오류'}`);
+      }
+    } catch { 
+      alert('네트워크 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.'); 
+    } finally { 
+      setGenerating(false); 
+    }
   };
 
   const filteredItems = activeCategory === '전체'

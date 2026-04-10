@@ -66,12 +66,15 @@ export async function POST(request: Request) {
       console.log(`[Scraper] Found ${targets.length} candidates.`);
       if (targets.length === 0) throw new Error('뉴스 소스를 찾을 수 없습니다 (크롤링 실패).');
 
-      // 중복 체크
+      // 중복 체크 (기존 10자에서 25자로 완화하여 더 정밀하게 체크)
       const { data: existing } = await supabase.from('posts').select('title');
-      const filtered = targets.filter(t => !existing?.some(e => e.title.includes(t.title.slice(0, 10)))).slice(0, 1);
+      const filtered = targets.filter(t => !existing?.some(e => e.title.includes(t.title.slice(0, 25)))).slice(0, 1);
       
-      console.log(`[Filter] ${filtered.length} new items to process.`);
-      if (filtered.length === 0) return NextResponse.json({ message: '이미 최신 기사가 모두 발행되었습니다.' });
+      console.log(`[Filter] ${filtered.length} new items found.`);
+      if (filtered.length === 0) {
+        console.log('[System] All discovered items are already published.');
+        return NextResponse.json({ message: '이미 모든 최신 기사가 발행된 상태입니다.', code: 'ALREADY_PUBLISHED' });
+      }
 
       const item = filtered[0];
       console.log(`[AI] Generating: ${item.title}`);

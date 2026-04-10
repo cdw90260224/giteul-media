@@ -69,13 +69,14 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isGovSupport = post.category === '정부지원공고';
   const isStrategyPost = post.title.includes('[전략]');
 
-  // D-Day calculation logic
   const getDDay = () => {
     if (!post.deadline_date) return null;
-    const today = new Date('2026-04-09'); // User specified today's date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const deadline = new Date(post.deadline_date);
+    deadline.setHours(0, 0, 0, 0);
     const diff = deadline.getTime() - today.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const days = Math.round(diff / (1000 * 60 * 60 * 24));
     
     if (days === 0) return { label: 'D-DAY', color: 'bg-red-600' };
     if (days < 0) return { label: '마감완료', color: 'bg-slate-400' };
@@ -133,8 +134,57 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       </div>
 
       <article className="max-w-3xl mx-auto px-6 pb-60">
-        <div className="prose prose-slate max-w-none article-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <div className="max-w-none article-content">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h2: ({node, ...props}) => {
+                return (
+                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100 italic" {...props}>
+                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity font-serif">/</span>
+                    {props.children}
+                  </h2>
+                );
+              },
+              h3: ({node, ...props}) => (
+                <h3 className="text-xl font-extrabold text-[#002B5B] mt-12 mb-6 flex items-center gap-3" {...props}>
+                  <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                  {props.children}
+                </h3>
+              ),
+              p: ({node, ...props}) => (
+                <p className="text-[1.25rem] leading-[1.9] text-slate-600 mb-8 font-medium tracking-tight" {...props} />
+              ),
+              ul: ({node, ...props}) => (
+                <ul className="space-y-4 mb-10 list-none pl-2" {...props} />
+              ),
+              li: ({node, ...props}) => (
+                <li className="flex gap-4 text-[1.2rem] text-slate-700 font-semibold" {...props}>
+                  <span className="text-blue-500 mt-1">✦</span>
+                  <div className="flex-1">{props.children}</div>
+                </li>
+              ),
+              table: ({node, ...props}) => (
+                <div className="my-16 overflow-x-auto rounded-[2rem] border-2 border-slate-50 shadow-2xl bg-white">
+                  <table className="w-full border-collapse" {...props} />
+                </div>
+              ),
+              th: ({node, ...props}) => (
+                <th className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] p-6 text-left" {...props} />
+              ),
+              td: ({node, ...props}) => (
+                <td className="p-6 text-[1.1rem] font-bold text-slate-800 border-b border-slate-50" {...props} />
+              ),
+              blockquote: ({node, ...props}) => (
+                <div className="my-16 p-12 bg-slate-50 rounded-[3rem] border-l-[12px] border-[#002B5B] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 text-6xl font-black text-slate-100 select-none italic uppercase">Insight</div>
+                  <div className="relative z-10 italic text-2xl font-black text-[#002B5B] leading-relaxed">
+                    {props.children}
+                  </div>
+                </div>
+              )
+            }}
+          >
             {post.content}
           </ReactMarkdown>
         </div>
@@ -174,19 +224,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             50% { transform: translateY(-4px); }
           }
           .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
-          .article-content h2 { font-size: 2.5rem !important; margin-top: 100px !important; margin-bottom: 40px !important; color: #0F172A !important; border-top: 2px solid #F8FAFC !important; padding-top: 50px !important; font-weight: 1000 !important; letter-spacing: -0.04em !important; font-style: italic !important; }
-          .article-content p { font-size: 1.2rem !important; line-height: 1.85 !important; color: #334155 !important; margin-bottom: 30px !important; font-weight: 500 !important; }
-          .article-content table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 50px 0; border: 1px solid #E2E8F0; border-radius: 1.5rem; overflow: hidden; background: white; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05); }
-          .article-content th { background: #F8FAFC; color: #64748B; font-weight: 800; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; padding: 20px; border-bottom: 1px solid #E2E8F0; }
-          .article-content td { padding: 20px; font-size: 1rem; color: #1E293B; font-weight: 600; border-bottom: 1px solid #F1F5F9; }
-          .article-content tr:last-child td { border-bottom: none; }
-          .article-content .comment-box { margin-top: 80px; padding: 40px; background: #F1F5F9; border-radius: 2rem; border-left: 8px solid #002B5B; position: relative; }
-          .article-content .comment-box h3 { margin-top: 0 !important; padding-top: 0 !important; border: none !important; font-size: 1.5rem !important; color: #002B5B !important; }
-          .article-content blockquote { margin: 40px 0 !important; padding: 30px 40px !important; background: #F8FAFC !important; border: 1px solid #E2E8F0 !important; border-left: 6px solid #002B5B !important; border-radius: 1.5rem !important; font-style: normal !important; }
-          .article-content blockquote p { margin-bottom: 0 !important; line-height: 1.8 !important; font-size: 1.1rem !important; font-weight: 600 !important; color: #475569 !important; }
         ` }} />
       </article>
-
 
       <footer className="bg-slate-900 py-32 text-center text-white/10 uppercase italic">
           <Link href="/" className="inline-block border border-white/10 px-12 py-5 rounded-full text-xs font-black tracking-[0.4em] hover:bg-white hover:text-deep-navy transition-all text-white/50">Back to Portal Home</Link>

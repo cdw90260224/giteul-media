@@ -20,24 +20,35 @@ const getDeepContext = async (noticeUrl: string): Promise<string> => {
 
 const scrapeKStartup = async (): Promise<any[]> => {
   try {
-    const res = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' }, cache: 'no-store' });
+    const res = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { 
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' },
+      cache: 'no-store' 
+    });
     const html = await res.text();
     const $ = cheerio.load(html);
     const notices: any[] = [];
-    // More robust selectors for title and links
-    $('li, tr, .item, .box').each((_, el) => {
-      const link = $(el).find('a').first();
-      const titleEl = $(el).find('.tit, p.tit, dt, strong').first();
+    
+    $('a').each((_, el) => {
+      const link = $(el);
       const attrVal = link.attr('onclick') || link.attr('href') || '';
       const snMatch = attrVal.match(/pbancSn=(\d+)/) || attrVal.match(/go_view\('?(\d+)'?\)/);
-      if (snMatch && (titleEl.text().trim() || link.text().trim())) {
+      if (snMatch) {
+        let title = link.find('p.tit, .tit, dt, strong').first().text().trim();
+        if (!title) title = link.text().trim();
+        
+        // Clean title: remove D-Day, Dates, etc.
+        title = title.replace(/D-\d+|마감일자\s*\d{4}-\d{2}-\d{2}|조회\s*[\d,]+/g, '').replace(/\s+/g, ' ').trim();
+        
+        if (title && title.length > 5 && !notices.find(n => n.sn === snMatch[1])) {
           notices.push({
-            title: (titleEl.text() || link.text()).trim().replace(/\s+/g, ' '),
+            title,
+            sn: snMatch[1],
             notice_url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
           });
+        }
       }
     });
-    return notices.filter(n => n.title.length > 5);
+    return notices;
   } catch (e) { console.error('Scrape Error:', e); return []; }
 };
 

@@ -43,12 +43,12 @@ export async function POST(request: Request) {
     console.log(`[Target] ${targetCategory}`);
 
     if (targetCategory === '정부지원공고') {
+      // (기존 정부지원공고 로직...)
       console.log('[Scraper] Accessing K-Startup...');
       const res = await fetch('https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do', { headers: FETCH_HEADERS, cache: 'no-store' });
       const html = await res.text();
       const $ = cheerio.load(html);
       const targets: any[] = [];
-
       $('a').each((_, el) => {
         const link = $(el);
         const attrVal = link.attr('onclick') || link.attr('href') || '';
@@ -64,47 +64,65 @@ export async function POST(request: Request) {
       });
 
       console.log(`[Scraper] Found ${targets.length} candidates.`);
-      if (targets.length === 0) throw new Error('뉴스 소스를 찾을 수 없습니다 (크롤링 실패).');
+      if (targets.length === 0) throw new Error('뉴스 소스를 찾을 수 없습니다.');
 
-      // 중복 체크 (기존 10자에서 25자로 완화하여 더 정밀하게 체크)
       const { data: existing } = await supabase.from('posts').select('title');
       const filtered = targets.filter(t => !existing?.some(e => e.title.includes(t.title.slice(0, 25)))).slice(0, 1);
       
-      console.log(`[Filter] ${filtered.length} new items found.`);
-      if (filtered.length === 0) {
-        console.log('[System] All discovered items are already published.');
-        return NextResponse.json({ message: '이미 모든 최신 기사가 발행된 상태입니다.', code: 'ALREADY_PUBLISHED' });
-      }
+      if (filtered.length === 0) return NextResponse.json({ message: '최신 공고가 모두 발행되었습니다.', code: 'ALREADY_PUBLISHED' });
 
       const item = filtered[0];
-      console.log(`[AI] Generating: ${item.title}`);
-      
-      const prompt = `당신은 최고 수준의 기업 분석 기자입니다. JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요. 
-      기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.
-      제목: ${item.title}\n공고URL: ${item.url}\n(발행일: 2026. 04. 10. 고정)`;
+      const prompt = `당신은 최고 수준의 기업 분석 기자입니다. JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요. 기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.\n제목: ${item.title}\n공고URL: ${item.url}\n(발행일: 2026. 04. 10. 고정)`;
+      const aiResponse = await callGeminiSafe(prompt);
+      const jsonStr = aiResponse.replace(/```json\s*|```/gi, '').trim();
+      const raw = JSON.parse(jsonStr);
+
+      const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
+      const { error: insertErr } = await adminClient.from('posts').insert([{
+        title: raw.title, summary: raw.summary, category: '정부지원공고', content: raw.content, notice_url: item.url, deadline_date: raw.deadline || null, created_at: new Date().toISOString()
+      }]);
+      if (insertErr) throw insertErr;
+      return NextResponse.json({ message: 'Success' });
+    } else {
+      // [신규] 외부 뉴스 API (NewsData.io) 연동 로직
+      console.log(`[NewsAPI] Fetching articles for: ${targetCategory}`);
+      const { fetchExternalNews } = await import('@/lib/news-api');
+      const articles = await fetchExternalNews(targetCategory);
+
+      if (!articles || articles.length === 0) throw new Error('외부 뉴스 수집에 실패했습니다.');
+
+      // 중복 체크
+      const { data: existing } = await supabase.from('posts').select('title');
+      const filtered = articles.filter(a => !existing?.some(e => e.title.includes(a.title.slice(0, 25)))).slice(0, 1);
+
+      if (filtered.length === 0) return NextResponse.json({ message: '해당 카테고리의 최신 기사가 이미 발행되었습니다.', code: 'ALREADY_PUBLISHED' });
+
+      const item = filtered[0];
+      const prompt = `당신은 글로벌 비즈니스 전문 기자입니다. 아래 뉴스를 바탕으로 전문적인 한국어 리포트를 작성하세요. 
+      JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요. 
+      기사 내용은 마크다운으로 작성하고, 마지막에 "### 기자의 시선" 평론을 인용구(> )와 함께 포함하세요.
+      원문 제목: ${item.title}\n내용: ${item.description}\n출처: ${item.source}`;
 
       const aiResponse = await callGeminiSafe(prompt);
       const jsonStr = aiResponse.replace(/```json\s*|```/gi, '').trim();
       const raw = JSON.parse(jsonStr);
 
-      console.log('[DB] Inserting into Supabase...');
       const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
       const { error: insertErr } = await adminClient.from('posts').insert([{
         title: raw.title,
         summary: raw.summary,
-        category: '정부지원공고',
+        category: targetCategory,
         content: raw.content,
         notice_url: item.url,
-        deadline_date: raw.deadline || null,
+        image_url: item.image,
         created_at: new Date().toISOString()
       }]);
 
       if (insertErr) throw insertErr;
-      console.log('[SUCCESS] Post Published!');
+      console.log(`[SUCCESS] ${targetCategory} Post Published!`);
       return NextResponse.json({ message: 'Success' });
     }
 
-    return NextResponse.json({ message: '준비 중인 카테고리입니다.' });
 
   } catch (err: any) {
     console.error('[CRITICAL ERROR]', err.message);

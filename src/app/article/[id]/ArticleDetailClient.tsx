@@ -133,7 +133,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      <article className="max-w-3xl mx-auto px-6 pb-60">
+      <article className="max-w-3xl mx-auto px-6 pb-60 text-[1.25rem] leading-[1.9] text-slate-600 font-medium">
         <div className="max-w-none article-content">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
@@ -185,7 +185,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               )
             }}
           >
-            {post.content}
+            {post.content.replace(/<div[^>]*>|<\/div>|---|#+/g, (match: string) => match === '---' || match.startsWith('#') ? match : '')}
           </ReactMarkdown>
         </div>
 

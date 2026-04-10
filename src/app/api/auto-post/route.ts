@@ -55,7 +55,18 @@ const scrapeKStartup = async (): Promise<any[]> => {
 const generatePost = async (item: any, deepContext: string) => {
   const genAI = new GoogleGenerativeAI(GEMINI_KEY);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
-  const prompt = `당신은 정책 전문 기자입니다. 아래 정보를 뉴스 형식으로 작성하세요. JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요.\n제목: ${item.title}\n상세: ${deepContext}\n(발행일: 2026. 04. 10. 고정)`;
+  const prompt = `당신은 최고 수준의 정책 전문 기자입니다. 
+아래 정보를 바탕으로 전문적인 뉴스 리포트를 작성하세요. 
+
+[지시사항]
+1. 형식: JSON {title, summary, category, content, notice_url, deadline} 형태로만 답하세요.
+2. 기사 본문(content): 마크다운으로 작성하되, 섹션 구분은 ##(H2)를 사용하세요.
+3. 기자 코멘트: 기사 마지막에 '### 기자의 시선' 섹션을 만들고, 내용은 반드시 인용구(> ) 블록으로 작성하세요. HTML 태그는 절대 금지합니다.
+4. 배점 정보가 있다면 표(Table)로 요약하세요.
+
+제목: ${item.title}
+상세: ${deepContext}
+(발행일: 2026. 04. 10. 고정)`;
 
   const result = await model.generateContent(prompt);
   const jsonText = result.response.text().replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();

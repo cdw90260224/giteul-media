@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
+import { after } from 'next/server';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -176,26 +177,33 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
 export async function GET(request: Request) {
   console.log('--- AUTO-CRON TRIGGERED ---');
-  try {
-    const results = [];
-    const today = new Date();
-    // UTC+9 (KST) 기준 날짜 계산
-    const kstDay = new Date(today.getTime() + (9 * 60 * 60 * 1000)).getUTCDate();
-    
-    // 1. 정부지원공고: 매일 4개
-    const govRes = await publishByCategory('정부지원공고', 4);
-    results.push({ category: '정부지원공고', results: govRes });
+  
+  // Vercel 크론 및 백그라운드 작업을 위해 after() 사용 (타임아웃 방지)
+  after(async () => {
+    try {
+      const today = new Date();
+      const kstDay = new Date(today.getTime() + (9 * 60 * 60 * 1000)).getUTCDate();
+      
+      console.log(`[Background Cron] Starting at ${new Date().toISOString()}`);
 
-    // 2. 이틀에 한 번씩 뉴스 발행 (짝수날: tech, 홀수날: 기업/마켓)
-    // 짝수날에는 AI/테크 트렌드를, 홀수날에는 기업/마켓 뉴스를 1개씩 발행하여 '이틀에 하나씩' 규칙 준수
-    const newsCategory = (kstDay % 2 === 0) ? 'tech' : '기업/마켓 뉴스';
-    const newsRes = await publishByCategory(newsCategory, 1);
-    results.push({ category: newsCategory, results: newsRes });
-    
-    return NextResponse.json({ message: 'Cron Process Finished', results });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
+      // 1. 정부지원공고 (4개 필지) & 2. 뉴스 (1개 필지) 병렬 시작
+      const newsCategory = (kstDay % 2 === 0) ? 'tech' : '기업/마켓 뉴스';
+      
+      await Promise.all([
+        publishByCategory('정부지원공고', 4),
+        publishByCategory(newsCategory, 1)
+      ]);
+
+      console.log(`[Background Cron] Successfully finished all tasks.`);
+    } catch (err: any) {
+      console.error('[Background Cron] FATAL ERROR:', err.message);
+    }
+  });
+
+  return NextResponse.json({ 
+    success: true, 
+    message: '뉴스 발행 파이프라인이 백그라운드에서 가동되었습니다. 약 1~2분 후 사이트에 반영됩니다.' 
+  });
 }
 
 export async function POST(request: Request) {

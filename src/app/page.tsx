@@ -281,18 +281,21 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {(magazineList.length > 0 ? magazineList : techPosts.slice(0, 4)).map((item) => {
               const isGov = item.category === '정부지원공고' || item.category?.toLowerCase() === 'strategy' || item.title.includes('[전략]');
-              const govLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Emblem_of_the_Government_of_the_Republic_of_Korea.svg/1024px-Emblem_of_the_Government_of_the_Republic_of_Korea.svg.png';
-              const techImg = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e';
+              const govLogo = 'https://www.mss.go.kr/images/common/logo.png'; // Stable MSS Logo
+              const techImg = 'https://images.unsplash.com/photo-1485083269755-a7b559a4fe5e?auto=format&fit=crop&q=80&w=600';
               const defaultImg = isGov ? govLogo : techImg;
               return (
                 <LinkNext key={item.id} href={`/article/${item.id}`} className="group bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/5">
                   <div className="aspect-video bg-slate-50 rounded-2xl mb-5 overflow-hidden">
-                    <div className={isGov ? "w-full h-full flex items-center justify-center p-8 bg-white" : "w-full h-full"}>
+                    <div className={isGov ? "w-full h-full flex items-center justify-center p-6 bg-white" : "w-full h-full"}>
                       <img 
-                        src={(isGov && !item.image_url?.includes('unsplash')) ? govLogo : (item.image_url || defaultImg)} 
+                        src={(isGov && !item.image_url?.includes('unsplash') && !item.image_url?.includes('wikimedia')) ? govLogo : (item.image_url || defaultImg)} 
                         alt="Thumbnail" 
-                        className={isGov ? "max-w-[70%] max-h-[70%] object-contain" : "w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700"}
-                        onError={(e: any) => { e.target.src = defaultImg; }}
+                        className={isGov ? "max-w-[80%] max-h-[80%] object-contain" : "w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"}
+                        onError={(e: any) => { 
+                          if (isGov) e.target.src = 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png';
+                          else e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71';
+                        }}
                       />
                     </div>
                   </div>

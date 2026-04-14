@@ -138,11 +138,16 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         <div className="relative aspect-[21/9] w-full rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-[16px] border-white ring-1 ring-slate-100 bg-white">
           {(() => {
             const isGov = post.category === '정부지원공고' || post.category === 'strategy' || post.title.includes('[전략]');
-            const govLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Emblem_of_the_Government_of_the_Republic_of_Korea.svg/1024px-Emblem_of_the_Government_of_the_Republic_of_Korea.svg.png';
-            if (isGov && !post.image_url?.includes('unsplash')) {
+            const govLogo = 'https://www.mss.go.kr/images/common/logo.png';
+            if (isGov && !post.image_url?.includes('unsplash') && !post.image_url?.includes('wikimedia')) {
               return (
                 <div className="w-full h-full flex items-center justify-center p-12 lg:p-24 bg-white">
-                  <img src={govLogo} className="max-w-[80%] max-h-full object-contain" alt="Government Emblem" />
+                  <img 
+                    src={govLogo} 
+                    className="max-w-[80%] max-h-full object-contain" 
+                    alt="Government Emblem" 
+                    onError={(e: any) => { e.target.src = 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png'; }}
+                  />
                 </div>
               );
             }
@@ -151,7 +156,9 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 src={post.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} 
                 className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-1000" 
                 alt="Hero" 
-                onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; }} 
+                onError={(e: any) => { 
+                  e.target.src = isGov ? 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png' : 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; 
+                }} 
               />
             );
           })()}

@@ -74,7 +74,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             주의: 제목(title)에는 절대로 '[전략]' 단어나 유사한 태그를 포함하지 마세요. 일반적인 정부지원공고의 명확한 정보성 제목으로 작성하세요.
             기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.
             입력 제목: ${item.title}
-            공고URL: ${item.url}
+            공고URL: ${item.url}`;
 
             const aiResponse = await callGeminiSafe(prompt);
             let jsonStr = aiResponse.trim();

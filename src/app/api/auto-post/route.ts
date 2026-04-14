@@ -60,8 +60,12 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
     if (targets.length === 0) return [{ success: false, message: '뉴스 소스를 찾을 수 없습니다.' }];
 
-    const { data: existing } = await supabase.from('posts').select('title');
-    const filtered = targets.filter(t => !existing?.some(e => e.title.includes(t.title.slice(0, 25)))).slice(0, limit);
+    const { data: existing } = await supabase.from('posts').select('title, notice_url');
+    const filtered = targets.filter(t => {
+      const urlDup = existing?.some(e => e.notice_url === t.url);
+      const titleDup = existing?.some(e => e.title.includes(t.title.slice(0, 20)));
+      return !urlDup && !titleDup;
+    }).slice(0, limit);
     
     if (filtered.length === 0) return [{ success: false, message: '최신 공고가 이미 발행되었습니다.', code: 'ALREADY_PUBLISHED' }];
 
@@ -106,8 +110,12 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
     if (!articles || articles.length === 0) return [{ success: false, message: '뉴스 API 응답이 없습니다.' }];
 
-    const { data: existing } = await supabase.from('posts').select('title');
-    const filtered = articles.filter(a => !existing?.some(e => e.title.includes(a.title.slice(0, 25)))).slice(0, limit);
+    const { data: existing } = await supabase.from('posts').select('title, notice_url');
+    const filtered = articles.filter(a => {
+      const urlDup = existing?.some(e => e.notice_url === a.url);
+      const titleDup = existing?.some(e => e.title.includes(a.title.slice(0, 20)));
+      return !urlDup && !titleDup;
+    }).slice(0, limit);
 
     if (filtered.length === 0) return [{ success: false, message: '이미 발행된 기사입니다.', code: 'ALREADY_PUBLISHED' }];
 

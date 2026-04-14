@@ -156,7 +156,9 @@ export default function Home() {
         return i.category === activeCategory;
       });
     
-  const baseInfinityList = filteredItems.filter(i => ![heroMain.id, ...latestList.map(l => l.id), ...magazineList.map(m => m.id)].includes(i.id));
+  const baseInfinityList = activeCategory === '전체' 
+    ? filteredItems.filter(i => ![heroMain.id, ...latestList.map(l => l.id), ...magazineList.map(m => m.id)].includes(i.id))
+    : filteredItems;
 
   // Autonomous Feed D-Day 스마트 정렬
   const today = new Date();

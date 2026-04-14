@@ -75,7 +75,8 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
             JSON 구조: { "title": "...", "summary": "...", "category": "정부지원공고", "content": "...", "notice_url": "...", "deadline": "YYYY-MM-DD 또는 상시 접수" }
 
-            주의: 제목(title)에는 절대로 '[전략]' 단어나 유사한 태그를 포함하지 마세요. 일반적인 정부지원공고의 명확한 정보성 제목으로 작성하세요.
+            주의: 제목(title)에는 절대로 '[전략]' 단어나 유사한 태그를 포함하지 마세요. 
+            만약 공고의 마감일이 이미 지났거나 기한이 종료된 것이 확실하다면, "deadline" 필드에 정확한 과거 날짜를 기입하세요. 시스템이 자동으로 필터링합니다.
             기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.
             입력 제목: ${item.title}
             공고URL: ${item.url}`;
@@ -87,6 +88,17 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
             const validatedDeadline = (raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : null;
+
+            if (validatedDeadline) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const deadline = new Date(validatedDeadline);
+              if (deadline < today) {
+                console.log(`[Pipeline] Skipping expired notice: ${raw.title} (Deadline: ${validatedDeadline})`);
+                results.push({ success: false, message: '마감된 공고이므로 집필을 중단합니다.', code: 'EXPIRED' });
+                continue;
+              }
+            }
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
             await adminClient.from('posts').insert([{

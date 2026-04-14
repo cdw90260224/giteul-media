@@ -31,7 +31,9 @@ export async function fetchExternalNews(category: string): Promise<NewsArticle[]
     // Attempt GNews as priority for Search keywords if specified
     if (GNEWS_KEY) {
         try {
-            const query = category === 'AI/테크 트렌드' ? '인공지능 테크 스타트업' : (category === '글로벌 뉴스' ? 'Global Venture Capital News' : 'Korean Market Startup');
+            const query = (category === 'AI/테크 트렌드' || category === 'tech' || category === 'Tech') 
+                ? '인공지능 테크 스타트업 AI' 
+                : (category === '글로벌 뉴스' ? 'Global Venture Capital News' : '대한민국 기업 마켓 스타트업 뉴스');
             const res = await fetch(`https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=ko&country=kr&max=5&apikey=${GNEWS_KEY}`);
             const data = await res.json();
             if (data.articles) {
@@ -51,7 +53,7 @@ export async function fetchExternalNews(category: string): Promise<NewsArticle[]
     // Fallback to NewsData.io
     if (NEWSDATA_KEY) {
         try {
-            const newsDataCat = category === 'AI/테크 트렌드' ? 'technology' : 'business';
+            const newsDataCat = (category === 'AI/테크 트렌드' || category === 'tech' || category === 'Tech') ? 'technology' : 'business';
             const res = await fetch(`https://newsdata.io/api/1/news?apikey=${NEWSDATA_KEY}&country=kr&category=${newsDataCat}`);
             const data = await res.json();
             if (data.results) {

@@ -35,7 +35,7 @@ function parseTitle(title: string) {
   const bracketMatch = clean.match(/^(.*?)\((.*?)\)$/);
   if (bracketMatch) return { title: bracketMatch[1].trim(), institution: bracketMatch[2].trim() };
   
-  return { title: clean, institution: '공고기관' };
+  return { title: clean, institution: '공공기관' };
 }
 
 function DDayBadge({ deadline, category, className = "" }: { deadline?: string, category?: string, className?: string }) {

@@ -14,13 +14,14 @@ export async function fetchExternalNews(category: string): Promise<NewsArticle[]
 
     // Default to Mock if no keys found for demo/testing
     if (!NEWSDATA_KEY && !GNEWS_KEY) {
-        console.warn('No News API keys found in .env.local. Returning mock data for testing.');
+        console.warn('No News API keys found. Returning randomized mock data.');
+        const randomId = Math.floor(Math.random() * 1000);
         return [
             {
-                title: `[MOCK] ${category} 최신 트렌드 분석 - AI 시장의 변화`,
-                description: '전 세계적으로 AI 기술이 급격히 발전함에 따라 스타트업들의 대응 전략도 변하고 있습니다.',
+                title: `[MOCK-${randomId}] ${category} 산업의 혁신적 변화와 미래 전망`,
+                description: '전 세계적으로 해당 산업 분야에서 급격한 기술 발전이 이루어지고 있습니다.',
                 content: '상세 내용은 생략되었습니다 (Mock Data).',
-                url: 'https://newsdata.io',
+                url: `https://newsdata.io/mock/${randomId}`,
                 image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e',
                 publishedAt: new Date().toISOString(),
                 source: 'Giteul Mock News'

@@ -123,9 +123,10 @@ export default function Home() {
         body: JSON.stringify({ targetCategory: (activeCategory === '전체' || activeCategory === 'strategy') ? '정부지원공고' : (activeCategory === 'tech' ? 'tech' : activeCategory) })
       });
       const data = await res.json();
+      console.log('[Generate Output]', data);
       if (res.ok) {
         if (data.code === 'ALREADY_PUBLISHED') {
-          alert('💡 현재 모든 최신 공고가 이미 발행되었습니다. 잠시 후 새로운 소식이 등록되면 다시 시도해 주세요!');
+          alert('💡 현재 해당 분야의 모든 최신 뉴스가 이미 발행되었습니다. 잠시 후 새로운 소식이 검색되면 다시 시도해 주세요!');
         } else {
           window.location.reload();
         }

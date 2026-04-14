@@ -107,8 +107,12 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
   } else {
     const { fetchExternalNews } = await import('@/lib/news-api');
     const articles = await fetchExternalNews(targetCategory);
+    console.log(`[API] Fetched ${articles?.length || 0} articles for ${targetCategory}`);
 
-    if (!articles || articles.length === 0) return [{ success: false, message: '뉴스 API 응답이 없습니다.' }];
+    if (!articles || articles.length === 0) {
+      console.warn(`[API] No articles found for ${targetCategory}`);
+      return [{ success: false, message: '뉴스 API 응답이 없습니다. API 키를 확인해주세요.' }];
+    }
 
     const { data: existing } = await supabase.from('posts').select('title, notice_url');
     const filtered = articles.filter(a => {
@@ -117,10 +121,13 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
       return !urlDup && !titleDup;
     }).slice(0, limit);
 
+    console.log(`[API] ${filtered.length} new articles after deduplication`);
+
     if (filtered.length === 0) return [{ success: false, message: '이미 발행된 기사입니다.', code: 'ALREADY_PUBLISHED' }];
 
     for (const item of filtered) {
         try {
+            console.log(`[AI] Generating content for: ${item.title}`);
             const prompt = `당신은 글로벌 비즈니스 전문 기자입니다. 아래 뉴스를 바탕으로 전문적인 한국어 리포트를 작성하세요. 
             JSON 구조: { "title": "...", "summary": "...", "category": "${targetCategory}", "content": "...", "notice_url": "...", "deadline": "null" }
             
@@ -133,7 +140,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const raw = JSON.parse(jsonStr);
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
-            await adminClient.from('posts').insert([{
+            const { error: insertError } = await adminClient.from('posts').insert([{
               title: raw.title,
               summary: raw.summary,
               category: targetCategory,
@@ -142,7 +149,11 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               image_url: item.image,
               created_at: new Date().toISOString()
             }]);
+
+            if (insertError) throw insertError;
+
             results.push({ success: true, title: raw.title });
+            console.log(`[Pipeline] Successfully published: ${raw.title}`);
         } catch (e: any) {
             results.push({ success: false, error: e.message });
         }

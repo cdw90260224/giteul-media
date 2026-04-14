@@ -280,18 +280,21 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {(magazineList.length > 0 ? magazineList : techPosts.slice(0, 4)).map((item) => {
-              const defaultImg = item.category === '정부지원공고' 
-                ? 'https://images.unsplash.com/photo-1554224155-1696413565d3' 
-                : 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e';
+              const isGov = item.category === '정부지원공고' || item.category?.toLowerCase() === 'strategy' || item.title.includes('[전략]');
+              const govLogo = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Emblem_of_the_Government_of_the_Republic_of_Korea.svg/1024px-Emblem_of_the_Government_of_the_Republic_of_Korea.svg.png';
+              const techImg = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e';
+              const defaultImg = isGov ? govLogo : techImg;
               return (
                 <LinkNext key={item.id} href={`/article/${item.id}`} className="group bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/5">
                   <div className="aspect-video bg-slate-50 rounded-2xl mb-5 overflow-hidden">
-                     <img 
-                       src={item.image_url || defaultImg} 
-                       alt="Thumbnail" 
-                       className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700" 
-                       onError={(e: any) => { e.target.src = defaultImg; }}
-                     />
+                    <div className={isGov ? "w-full h-full flex items-center justify-center p-8 bg-white" : "w-full h-full"}>
+                      <img 
+                        src={(isGov && !item.image_url?.includes('unsplash')) ? govLogo : (item.image_url || defaultImg)} 
+                        alt="Thumbnail" 
+                        className={isGov ? "max-w-[70%] max-h-[70%] object-contain" : "w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all duration-700"}
+                        onError={(e: any) => { e.target.src = defaultImg; }}
+                      />
+                    </div>
                   </div>
                   <h4 className="text-[17px] font-bold text-slate-900 line-clamp-2 mb-3 leading-snug tracking-tight group-hover:text-blue-600">{parseTitle(item.title).title}</h4>
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">

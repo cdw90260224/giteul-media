@@ -167,9 +167,13 @@ export default function Home() {
         const dDate = new Date(item.deadline_date);
         if (!isNaN(dDate.getTime())) {
           const diffDays = Math.ceil((dDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          // 1순위: 마감 임박 공고 (D-Day 남은 순서대로)
           if (diffDays >= 0) return { group: 1, val: diffDays };
+          // 3순위: 마감 완료 공고 (가장 마지막으로 밀어냄)
+          if (diffDays < 0) return { group: 3, val: new Date(item.created_at).getTime() * -1 };
         }
       }
+      // 2순위: 일반 뉴스 및 상시 공고 (최신 발행순)
       return { group: 2, val: new Date(item.created_at).getTime() * -1 };
     };
     const rankA = getRank(a);

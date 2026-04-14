@@ -70,7 +70,14 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isStrategyPost = post.title.includes('[전략]');
 
   const getDDay = () => {
-    if (!post.deadline_date) return null;
+    const isGov = post.category === '정부지원공고' || post.category === 'Strategy';
+    if (!post.deadline_date) {
+      return { 
+        label: isGov ? '[상시]' : 'NEWS', 
+        color: isGov ? 'bg-blue-500' : 'bg-slate-400', 
+        text: isGov ? '상시 접수' : '최신 뉴스 업데이트' 
+      };
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(post.deadline_date);
@@ -78,10 +85,10 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     const diff = deadline.getTime() - today.getTime();
     const days = Math.round(diff / (1000 * 60 * 60 * 24));
     
-    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600' };
-    if (days < 0) return { label: '마감완료', color: 'bg-slate-400' };
-    if (days <= 7) return { label: `D-${days}`, color: 'bg-orange-500' };
-    return { label: `D-${days}`, color: 'bg-blue-600' };
+    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600', text: '실시간 마감 임박 알림' };
+    if (days < 0) return { label: '마감완료', color: 'bg-slate-400', text: '종료된 공고입니다' };
+    if (days <= 7) return { label: `D-${days}`, color: 'bg-red-600', text: '실시간 마감 임박 알림' };
+    return { label: `D-${days}`, color: 'bg-slate-100 text-slate-600 border border-slate-200', text: '안정적인 모집 중' };
   };
 
   const dDay = getDDay();
@@ -109,8 +116,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               </div>
             )}
 
-            <h1 className="text-3xl md:text-4xl font-black text-[#0f172a] leading-[1.2] tracking-tighter italic">
-                {post.title}
+            <h1 className="text-3xl md:text-5xl font-black text-[#0f172a] leading-[1.2] tracking-tighter">
+                {post.title.replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '').trim()}
             </h1>
             
             <div className="relative mt-12 p-8 md:p-12 bg-slate-50/80 rounded-[2.5rem] border-2 border-slate-100 overflow-hidden group hover:border-blue-200 transition-colors">
@@ -140,8 +147,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             components={{
               h2: ({node, ...props}) => {
                 return (
-                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100 italic" {...props}>
-                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity font-serif">/</span>
+                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100" {...props}>
+                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                     {props.children}
                   </h2>
                 );
@@ -153,7 +160,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 </h3>
               ),
               p: ({node, ...props}) => (
-                <p className="text-[1.25rem] leading-[1.9] text-slate-600 mb-8 font-medium tracking-tight" {...props} />
+                <p className="text-[1.15rem] leading-[1.8] text-slate-700 mb-8 font-medium tracking-tight font-sans" {...props} />
               ),
               ul: ({node, ...props}) => (
                 <ul className="space-y-4 mb-10 list-none pl-2" {...props} />

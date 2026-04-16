@@ -14,7 +14,7 @@ const FETCH_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 async function callGeminiSafe(prompt: string) {
-    const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    const models = ['gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
     
     for (const modelName of models) {
@@ -62,15 +62,25 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
     if (targets.length === 0) return [{ success: false, message: '뉴스 소스를 찾을 수 없습니다.' }];
 
     const { data: existing } = await supabase.from('posts').select('title, notice_url');
+    const limitForGov = limit === -1 ? targets.length : limit;
     const filtered = targets.filter(t => {
       const urlDup = existing?.some(e => e.notice_url === t.url);
       const titleDup = existing?.some(e => e.title.includes(t.title.slice(0, 20)));
       return !urlDup && !titleDup;
-    }).slice(0, limit);
+    }).slice(0, limitForGov);
     
     if (filtered.length === 0) return [{ success: false, message: '최신 공고가 이미 발행되었습니다.', code: 'ALREADY_PUBLISHED' }];
 
-    for (const item of filtered) {
+    for (let i = 0; i < filtered.length; i++) {
+        const item = filtered[i];
+        
+        // IP 차단 방지를 위한 인간다운 속도(Time Sleep) 부여 - 첫 번째 항목 이후부터 대기
+        if (i > 0) {
+            const delayms = Math.floor(Math.random() * 15000) + 15000; // 15초 ~ 30초 사이 랜덤 딜레이
+            console.log(`[Crawling] IP 차단 방지를 위해 ${delayms/1000}초간 대기합니다...`);
+            await sleep(delayms);
+        }
+
         try {
             const prompt = `당신은 최고 수준의 기업 분석 기자입니다. 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
@@ -105,7 +115,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             await adminClient.from('posts').insert([{
               title: raw.title, 
               summary: raw.summary, 
-              category: 'strategy', 
+              category: '정부지원공고', 
               content: raw.content, 
               notice_url: item.url, 
               deadline_date: validatedDeadline, 
@@ -189,8 +199,9 @@ export async function GET(request: Request) {
       // 1. 정부지원공고 (4개 필지) & 2. 뉴스 (1개 필지) 병렬 시작
       const newsCategory = (kstDay % 2 === 0) ? 'tech' : '기업/마켓 뉴스';
       
+      // 정부지원공고는 제한 해제(-1)하여 당일 전수 수집
       await Promise.all([
-        publishByCategory('정부지원공고', 4),
+        publishByCategory('정부지원공고', -1),
         publishByCategory(newsCategory, 1)
       ]);
 
@@ -211,9 +222,9 @@ export async function POST(request: Request) {
   try {
     const { targetCategory } = await request.json();
     const results = await publishByCategory(targetCategory, 1);
-    const result = results[0];
+    const result: any = results[0];
     if (!result.success) {
-       return NextResponse.json({ error: result.message, code: result.code }, { status: result.code === 'ALREADY_PUBLISHED' ? 200 : 400 });
+       return NextResponse.json({ error: result.message || result.error, code: result.code }, { status: result.code === 'ALREADY_PUBLISHED' ? 200 : 400 });
     }
     return NextResponse.json({ message: 'Success', title: result.title });
   } catch (err: any) {

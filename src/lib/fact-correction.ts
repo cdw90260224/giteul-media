@@ -43,7 +43,7 @@ async function factCorrection() {
 
     for (const p of patterns) {
         if (updatedContent.match(p.target)) {
-            updatedContent = updatedContent.replace(p.target, p.txt ? p.txt : p.replacement);
+            updatedContent = updatedContent.replace(p.target, p.replacement);
             isModified = true;
         }
     }

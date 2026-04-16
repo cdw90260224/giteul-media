@@ -70,20 +70,26 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isStrategyPost = post.title.includes('[전략]');
 
   const getDDay = () => {
-    const isGov = post.category === '정부지원공고' || post.category === 'Strategy';
-    if (!post.deadline_date) {
-      return { 
-        label: isGov ? '[상시]' : 'NEWS', 
-        color: isGov ? 'bg-blue-500' : 'bg-slate-400', 
-        text: isGov ? '상시 접수' : '최신 뉴스 업데이트' 
-      };
-    }
+    const isGov = post.category === '정부지원공고' || post.category === 'Strategy' || post.category?.toLowerCase() === 'strategy';
+    const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(post.category || '');
+    const isMarket = post.category === '기업/마켓 뉴스';
+
+    const getNoDeadlineInfo = () => {
+      if (isGov) return { label: '[상시]', color: 'bg-blue-600', text: '상시 접수' };
+      if (isTech) return { label: 'TECH', color: 'bg-purple-600', text: '테크 트렌드 리포트' };
+      if (isMarket) return { label: 'MARKET', color: 'bg-teal-600', text: '기업/마켓 리포트' };
+      return { label: 'NEWS', color: 'bg-slate-400', text: '최신 뉴스 업데이트' };
+    };
+
+    if (!post.deadline_date) return getNoDeadlineInfo();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(post.deadline_date);
+    if (isNaN(deadline.getTime())) return getNoDeadlineInfo();
     deadline.setHours(0, 0, 0, 0);
+    
     const diff = deadline.getTime() - today.getTime();
-    const days = Math.round(diff / (1000 * 60 * 60 * 24));
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     
     if (days === 0) return { label: 'D-DAY', color: 'bg-red-600', text: '실시간 마감 임박 알림' };
     if (days < 0) return { label: '마감완료', color: 'bg-slate-400', text: '종료된 공고입니다' };
@@ -95,9 +101,12 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
-      <nav className="w-full bg-white/90 backdrop-blur-xl border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
+      <nav className="w-full bg-white/80 backdrop-blur-md border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          <Link href="/" className="text-3xl font-black text-deep-navy tracking-tighter italic">기틀.</Link>
+          <Link href="/" className="group flex items-center gap-2">
+            <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">기틀</span>
+            <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
+          </Link>
           <div className="flex items-center gap-6">
             <span className="bg-blue-50 text-blue-700 px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest border border-blue-100 italic">{post.category}</span>
             <button onClick={handleDelete} className="text-red-400 font-bold text-xs uppercase tracking-widest opacity-20 hover:opacity-100 transition-opacity">Delete</button>
@@ -120,13 +129,16 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 {post.title.replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '').trim()}
             </h1>
             
-            <div className="relative mt-12 p-8 md:p-12 bg-slate-50/80 rounded-[2.5rem] border-2 border-slate-100 overflow-hidden group hover:border-blue-200 transition-colors">
-                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
-                    <span className="text-8xl font-black italic">SUMMARY</span>
+            <div className="relative mt-12 p-10 md:p-14 bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-blue-900/5 group hover:border-blue-200 transition-all duration-500">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                    <span className="text-9xl font-black italic">SUMMARY</span>
                 </div>
-                <div className="relative z-10 space-y-4">
-                  <span className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] mb-4 block">Executive Briefing</span>
-                  <p className="text-xl md:text-2xl text-slate-700 font-bold leading-relaxed tracking-tight italic">
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-px bg-blue-600" />
+                    <span className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] block">Executive Briefing</span>
+                  </div>
+                  <p className="text-xl md:text-2xl text-slate-800 font-bold leading-relaxed tracking-tight italic">
                       {post.summary}
                   </p>
                 </div>
@@ -222,20 +234,20 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
 
         {isGovSupport && !isStrategyPost && (
-            <div className="mt-24 p-12 bg-deep-navy rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">
+            <div className="mt-24 p-12 bg-slate-900 rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="space-y-4 relative z-10">
                     <span className="text-blue-400 text-xs font-black uppercase tracking-[0.5em] animate-pulse italic">Professional Insight Upgrade</span>
                     <h4 className="text-white text-3xl font-black tracking-tighter leading-tight">이 공고의 '사업계획서 실전 전략' 정보가 아직 부족한가요?</h4>
-                    <p className="text-white/60 text-xl font-medium italic">이미 탑재된 제미나이 2.5 엔진으로 실시간 전략 분석을 시작합니다.</p>
+                    <p className="text-white/60 text-xl font-medium italic">이미 탑재된 Gemini 2.0 Flash 엔진으로 실시간 전략 분석을 시작합니다.</p>
                 </div>
                 <button 
                   onClick={handleUpgradeStrategy}
                   disabled={upgrading}
                   className={`inline-block px-12 py-7 rounded-2xl font-black text-xl tracking-widest transition-all shadow-2xl relative z-10
-                    ${upgrading ? 'bg-slate-700 text-white animate-pulse cursor-wait' : 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 active:scale-95'}`}
+                    ${upgrading ? 'bg-slate-700 text-white animate-pulse cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 active:scale-95'}`}
                 >
-                    {upgrading ? '🚀 제미나이가 전략 리포트로 전면 개편 중...' : '[이 사업의 \'실시간 전략 리포트\' 생성하기 →]'}
+                    {upgrading ? '🚀 Gemini가 전략 리포트로 전면 개편 중...' : '[이 사업의 \'실시간 전략 리포트\' 생성하기 →]'}
                 </button>
             </div>
         )}
@@ -259,9 +271,40 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         ` }} />
       </article>
 
-      <footer className="bg-slate-900 py-32 text-center text-white/10 uppercase italic">
-          <Link href="/" className="inline-block border border-white/10 px-12 py-5 rounded-full text-xs font-black tracking-[0.4em] hover:bg-white hover:text-deep-navy transition-all text-white/50">Back to Portal Home</Link>
+      <footer className="bg-slate-950 py-32 mt-20 text-center">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-12">
+          <div className="flex items-center gap-2">
+            <span className="text-4xl font-black text-white tracking-tighter">기틀</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+          </div>
+          <p className="text-slate-500 text-sm font-medium tracking-widest max-w-md mx-auto leading-relaxed">
+            기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.
+          </p>
+          <div className="flex gap-8">
+            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Intelligence</span>
+            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Strategy</span>
+            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Growth</span>
+          </div>
+          <div className="h-px w-24 bg-slate-800" />
+          <p className="text-slate-700 text-[10px] font-bold uppercase tracking-widest">© 2026 Giteul AI Media. All Rights Reserved.</p>
+        </div>
       </footer>
+
+      {/* Floating Scroll to Top */}
+      <button 
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="fixed bottom-10 right-10 w-14 h-14 bg-white shadow-2xl rounded-full border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group z-40"
+      >
+        <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+      </button>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
+      ` }} />
     </div>
   );
 }

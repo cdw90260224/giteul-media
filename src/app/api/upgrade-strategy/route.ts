@@ -9,7 +9,7 @@ const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 async function callGeminiSafe(prompt: string) {
-    const models = ['gemini-2.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-pro'];
+    const models = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
     
     for (const modelName of models) {

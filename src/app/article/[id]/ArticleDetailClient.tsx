@@ -5,6 +5,21 @@ import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+function SectorBadge({ sector }: { sector: string }) {
+  if (!sector || sector === '일반') return null;
+  const colors: Record<string, string> = {
+    '농업': 'bg-green-50 text-green-700 border-green-200',
+    '기술/IT': 'bg-blue-50 text-blue-700 border-blue-200',
+    '소상공인': 'bg-orange-50 text-orange-700 border-orange-200'
+  };
+  const colorClass = colors[sector] || 'bg-slate-50 text-slate-700 border-slate-200';
+  return (
+    <span className={`inline-block px-3 py-1 rounded-full text-[12px] font-black border ${colorClass} tracking-tight`}>
+      {sector}
+    </span>
+  );
+}
+
 export default function ArticleDetailClient({ id }: { id: string }) {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -114,7 +129,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </nav>
 
-      <header className="max-w-3xl mx-auto px-6 pt-24 pb-16">
+      <header className="max-w-3xl mx-auto px-6 pt-12 pb-12">
         <div className="space-y-8">
             {dDay && (
               <div className="flex items-center gap-3 animate-bounce-subtle">
@@ -125,8 +140,11 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               </div>
             )}
 
-            <h1 className="text-3xl md:text-5xl font-black text-[#0f172a] leading-[1.2] tracking-tighter">
+            <h1 className="text-3xl md:text-5xl font-black text-[#0f172a] leading-[1.2] tracking-tighter flex items-center flex-wrap gap-4">
                 {post.title.replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '').trim()}
+                {post.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
+                  <SectorBadge sector={post.summary.match(/^\[(.*?)\]/)[1]} />
+                )}
             </h1>
             
             <div className="relative mt-12 p-10 md:p-14 bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-blue-900/5 group hover:border-blue-200 transition-all duration-500">
@@ -146,34 +164,16 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 mb-32">
+      <div className="max-w-5xl mx-auto px-6 mb-16">
         <div className="relative aspect-[21/9] w-full rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-[16px] border-white ring-1 ring-slate-100 bg-white">
-          {(() => {
-            const isGov = post.category === '정부지원공고' || post.category === 'strategy' || post.title.includes('[전략]');
-            const govLogo = 'https://www.mss.go.kr/images/common/logo.png';
-            if (isGov && !post.image_url?.includes('unsplash') && !post.image_url?.includes('wikimedia')) {
-              return (
-                <div className="w-full h-full flex items-center justify-center p-12 lg:p-24 bg-white">
-                  <img 
-                    src={govLogo} 
-                    className="max-w-[80%] max-h-full object-contain" 
-                    alt="Government Emblem" 
-                    onError={(e: any) => { e.target.src = 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png'; }}
-                  />
-                </div>
-              );
-            }
-            return (
-              <img 
-                src={post.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} 
-                className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-1000" 
-                alt="Hero" 
-                onError={(e: any) => { 
-                  e.target.src = isGov ? 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png' : 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'; 
-                }} 
-              />
-            );
-          })()}
+          <img 
+            src={post.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1600&auto=format&fit=crop'} 
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
+            alt="Hero" 
+            onError={(e: any) => { 
+              e.target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=1600&auto=format&fit=crop';
+            }} 
+          />
         </div>
       </div>
 
@@ -190,12 +190,29 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   </h2>
                 );
               },
-              h3: ({node, ...props}) => (
-                <h3 className="text-xl font-extrabold text-[#002B5B] mt-12 mb-6 flex items-center gap-3" {...props}>
-                  <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
-                  {props.children}
-                </h3>
-              ),
+              h3: ({node, ...props}) => {
+                const headerText = Array.isArray(props.children) ? props.children.join('') : String(props.children);
+                const isReporterHeader = headerText.includes('기자의 시선');
+                if (isReporterHeader) {
+                  return (
+                    <div className="mt-24 mb-6 flex flex-col gap-2">
+                       <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs italic border-2 border-blue-500 shadow-lg">G</div>
+                        <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.4em]">Expert Opinion</span>
+                      </div>
+                      <h3 className="text-3xl font-black text-slate-900 tracking-tight" {...props}>
+                        {props.children}
+                      </h3>
+                    </div>
+                  );
+                }
+                return (
+                  <h3 className="text-2xl font-black text-[#002B5B] mt-16 mb-6 flex items-center gap-3" {...props}>
+                    <div className="w-2 h-6 bg-blue-500 rounded-full" />
+                    {props.children}
+                  </h3>
+                );
+              },
               p: ({node, ...props}) => (
                 <p className="text-[1.15rem] leading-[1.8] text-slate-700 mb-8 font-medium tracking-tight font-sans" {...props} />
               ),
@@ -220,10 +237,27 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 <td className="p-6 text-[1.1rem] font-bold text-slate-800 border-b border-slate-50" {...props} />
               ),
               blockquote: ({node, ...props}) => (
-                <div className="my-16 p-12 bg-slate-50 rounded-[3rem] border-l-[12px] border-[#002B5B] relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 text-6xl font-black text-slate-100 select-none italic uppercase">Insight</div>
-                  <div className="relative z-10 italic text-2xl font-black text-[#002B5B] leading-relaxed">
-                    {props.children}
+                <div className="my-12 p-10 md:p-14 bg-gradient-to-br from-slate-50 to-white rounded-[3.5rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group hover:border-blue-100 transition-all duration-700">
+                  <div className="absolute top-0 left-0 w-2 h-full bg-blue-600" />
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="text-[1.2rem] md:text-[1.35rem] leading-[2] text-slate-700 font-bold tracking-tight">
+                      {props.children}
+                    </div>
+                  </div>
+                  <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                        <div className="text-white font-black italic text-sm">G</div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-slate-900 font-black text-sm tracking-tight">안티그래비티 전문위원</span>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Chief Strategy Reporter</span>
+                      </div>
+                    </div>
+                    <div className="hidden md:block">
+                       <span className="text-slate-100 text-6xl font-black italic select-none">ANALYSIS</span>
+                    </div>
                   </div>
                 </div>
               )
@@ -271,22 +305,22 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         ` }} />
       </article>
 
-      <footer className="bg-slate-950 py-32 mt-20 text-center">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-12">
+      <footer className="bg-white py-16 mt-16 border-t border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
           <div className="flex items-center gap-2">
-            <span className="text-4xl font-black text-white tracking-tighter">기틀</span>
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
+            <div className="w-2 h-2 rounded-full bg-blue-600" />
           </div>
-          <p className="text-slate-500 text-sm font-medium tracking-widest max-w-md mx-auto leading-relaxed">
+          <p className="text-slate-500 text-xs font-bold tracking-widest max-w-md mx-auto leading-relaxed">
             기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.
           </p>
-          <div className="flex gap-8">
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Intelligence</span>
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Strategy</span>
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Growth</span>
+          <div className="flex gap-6">
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Intelligence</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Strategy</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Growth</span>
           </div>
-          <div className="h-px w-24 bg-slate-800" />
-          <p className="text-slate-700 text-[10px] font-bold uppercase tracking-widest">© 2026 Giteul AI Media. All Rights Reserved.</p>
+          <div className="h-px w-16 bg-slate-100" />
+          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em]">© 2026 Giteul AI Media Portal.</p>
         </div>
       </footer>
 

@@ -13,8 +13,21 @@ const FETCH_HEADERS = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+const SECTORS: Record<string, string[]> = {
+  '농업': ['농식품', '스마트팜', '귀농', '축산', '농수산', '농촌'],
+  '기술/IT': ['AI', '플랫폼', '클라우드', '딥테크', '빅데이터', '인공지능', '소프트웨어', 'SW', 'IT', '기술개발', '테크', '디지털'],
+  '소상공인': ['자영업', '시장', '소상공인', '로컬', '전통시장', '골목상권', '상점', '상인']
+};
+
+function detectSector(text: string): string {
+  for (const [sector, keywords] of Object.entries(SECTORS)) {
+    if (keywords.some(kw => text.includes(kw))) return sector;
+  }
+  return '일반';
+}
+
 async function callGeminiSafe(prompt: string) {
-    const models = ['gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+    const models = ['gemini-2.5-flash', 'gemini-2.5-pro'];
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
     
     for (const modelName of models) {
@@ -61,18 +74,19 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
     if (targets.length === 0) return [{ success: false, message: '뉴스 소스를 찾을 수 없습니다.' }];
 
-    const { data: existing } = await supabase.from('posts').select('title, notice_url');
+    const { data: existing } = await supabase.from('posts').select('id, title, notice_url');
     const limitForGov = limit === -1 ? targets.length : limit;
-    const filtered = targets.filter(t => {
-      const urlDup = existing?.some(e => e.notice_url === t.url);
-      const titleDup = existing?.some(e => e.title.includes(t.title.slice(0, 20)));
-      return !urlDup && !titleDup;
+    
+    // 중복 방지: 제목이나 URL이 같은 경우 정보를 '업데이트'할 대상으로 분류
+    const targetsToProcess = targets.map(t => {
+      const existingMatch = existing?.find(e => e.notice_url === t.url || e.title.includes(t.title.slice(0, 20)));
+      return { ...t, existingId: existingMatch?.id };
     }).slice(0, limitForGov);
     
-    if (filtered.length === 0) return [{ success: false, message: '최신 공고가 이미 발행되었습니다.', code: 'ALREADY_PUBLISHED' }];
+    if (targetsToProcess.length === 0) return [{ success: false, message: '처리할 공고가 없습니다.', code: 'NO_TARGETS' }];
 
-    for (let i = 0; i < filtered.length; i++) {
-        const item = filtered[i];
+    for (let i = 0; i < targetsToProcess.length; i++) {
+        const item = targetsToProcess[i];
         
         // IP 차단 방지를 위한 인간다운 속도(Time Sleep) 부여 - 첫 번째 항목 이후부터 대기
         if (i > 0) {
@@ -82,13 +96,20 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
         }
 
         try {
-            const prompt = `당신은 최고 수준의 기업 분석 기자입니다. 
+            const sector = detectSector(item.title);
+            const prompt = `당신은 대한민국 최고 수준의 기업 분석 기자이자 정부지원사업 전략 컨설턴트입니다. 
+            단순한 요약이 아니라, 기업들에게 실질적인 '돈이 되는 정보'와 '합격 전략'을 제공해야 합니다.
+
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
-            JSON 구조: { "title": "...", "summary": "...", "category": "정부지원공고", "content": "...", "notice_url": "...", "deadline": "YYYY-MM-DD 또는 상시 접수" }
+            JSON 구조: { "title": "...", "summary": "...", "category": "정부지원공고", "content": "...", "notice_url": "...", "deadline": "YYYY-MM-DD 또는 상시 접수", "sector": "${sector}", "image_keyword": "업무와 관련된 대표 영문 키워드 1개 (예: business, agriculture, technology, store)" }
 
             주의: 제목(title)에는 절대로 '[전략]' 단어나 유사한 태그를 포함하지 마세요. 
-            만약 공고의 마감일이 이미 지났거나 기한이 종료된 것이 확실하다면, "deadline" 필드에 정확한 과거 날짜를 기입하세요. 시스템이 자동으로 필터링합니다.
-            기사는 마크다운으로 작성하고, 마지막에 "### 기자의 시선"을 인용구(> )와 함께 추가하세요.
+            내용(content)은 마크다운으로 작성하되, 마지막에 "### ✒️ 기자의 시선: 전략적 분석" 섹션을 반드시 포함하고 인용구(> )와 함께 다음 내용을 담으세요:
+            1. [왜 주목해야 하는가?]: 이 공고의 파격적인 혜택이나 전략적 가치 분석
+            2. [당첨 확률을 높이는 핵심 포인트]: 사업계획서나 발표 시 강조해야 할 유정(Winning Edge)
+            3. [이런 업체는 무조건 지원하세요]: 가장 유리한 기업 프로필 제안
+            
+            이미지 키워드는 해당 공고의 성격에 따라 'startup', 'finance', 'factory', 'global' 중 가장 적합한 것을 선택하거나 새로 생성하세요.
             입력 제목: ${item.title}
             공고URL: ${item.url}`;
 
@@ -112,16 +133,31 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             }
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
-            await adminClient.from('posts').insert([{
+            
+            // 키워드 기반의 고해상도 Unsplash 이미지 매칭 (랜덤성 부여)
+            const seed = Math.floor(Math.random() * 1000);
+            const imageUrl = `https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop&sig=${seed}&${raw.image_keyword || 'business'}`;
+
+            // 기존 데이터가 있으면 Update(Upsert), 없으면 Insert
+            const postData = {
               title: raw.title, 
-              summary: raw.summary, 
+              summary: `[${raw.sector || sector}] ` + raw.summary, 
               category: '정부지원공고', 
               content: raw.content, 
               notice_url: item.url, 
+              image_url: imageUrl,
               deadline_date: validatedDeadline, 
               created_at: new Date().toISOString()
-            }]);
-            results.push({ success: true, title: raw.title });
+            };
+
+            if (item.existingId) {
+              console.log(`[Pipeline] Updating existing post: ${item.existingId}`);
+              await adminClient.from('posts').update(postData).eq('id', item.existingId);
+              results.push({ success: true, title: raw.title, action: 'updated' });
+            } else {
+              await adminClient.from('posts').insert([postData]);
+              results.push({ success: true, title: raw.title, action: 'inserted' });
+            }
         } catch (e: any) {
             results.push({ success: false, error: e.message });
         }
@@ -137,25 +173,43 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
       return [{ success: false, message: '뉴스 API 응답이 없습니다. API 키를 확인해주세요.' }];
     }
 
-    const { data: existing } = await supabase.from('posts').select('title, notice_url');
-    const filtered = articles.filter(a => {
-      const urlDup = existing?.some(e => e.notice_url === a.url);
-      const titleDup = existing?.some(e => e.title.includes(a.title.slice(0, 20)));
-      return !urlDup && !titleDup;
+    const { data: existing } = await supabase.from('posts').select('id, title, notice_url');
+    const targetsToProcess = articles.map(a => {
+      const existingMatch = existing?.find(e => e.notice_url === a.url || e.title.includes(a.title.slice(0, 20)));
+      return { ...a, existingId: existingMatch?.id };
     }).slice(0, limit);
 
-    console.log(`[API] ${filtered.length} new articles after deduplication`);
+    console.log(`[API] ${targetsToProcess.length} targets to process for ${targetCategory}`);
 
-    if (filtered.length === 0) return [{ success: false, message: '이미 발행된 기사입니다.', code: 'ALREADY_PUBLISHED' }];
+    if (targetsToProcess.length === 0) return [{ success: false, message: '처리할 기사가 없습니다.', code: 'NO_TARGETS' }];
 
-    for (const item of filtered) {
+    for (const item of targetsToProcess) {
         try {
-            console.log(`[AI] Generating content for: ${item.title}`);
-            const prompt = `당신은 글로벌 비즈니스 전문 기자입니다. 아래 뉴스를 바탕으로 전문적인 한국어 리포트를 작성하세요. 
-            JSON 구조: { "title": "...", "summary": "...", "category": "${targetCategory}", "content": "...", "notice_url": "...", "deadline": "null" }
+            const fullText = item.title + ' ' + (item.description || '');
+            const sector = detectSector(fullText);
             
-            기사 내용은 마크다운으로 작성하고, 마지막에 "### 기자의 시선" 평론을 인용구(> )와 함께 포함하세요.
-            원문 제목: ${item.title}\n내용: ${item.description}\n출처: ${item.source}`;
+            // 창업 뉴스 필터링 로직
+            const startupKeywords = ['투자 유치', 'IR', '창업가 인터뷰', '스타트업 규제', '엑시트', 'Exit', '벤처캐피탈', 'VC', '엔젤투자', '스핀오프', 'M&A'];
+            const isStartupNews = startupKeywords.some(kw => fullText.includes(kw));
+            const finalCategory = isStartupNews ? '창업 뉴스' : targetCategory;
+
+            const prompt = isStartupNews 
+              ? `당신은 대한민국 최고의 스타트업 분석 기자이자 벤처캐피탈 리스트입니다. 아래 뉴스를 바탕으로 스타트업 대표와 예비 창업자들을 위한 전략 리포트를 작성하세요.
+                 반드시 JSON { "title", "summary", "category": "창업 뉴스", "content", "notice_url", "sector": "${sector}" } 구조로 응답하세요.
+                 
+                 내용(content)은 마크다운으로 작성하되, 마지막에 "### ✒️ 기자의 시선: 스타트업 인사이트" 섹션을 포함하고 다음 내용을 분석하세요:
+                 1. [기회 포인트]: 이 뉴스가 스타트업 생태계나 개별 창업자에게 주는 기회
+                 2. [위기 및 주의사항]: 비즈니스 모델이나 규제 측면에서 대비해야 할 리스크
+                 3. [창업자 대응 전략]: 지금 즉시 준비하거나 실행해야 할 구체적인 조언
+                 
+                 원문 제목: ${item.title}\n내용: ${item.description}\n출처: ${item.source}`
+              : `당신은 글로벌 비즈니스 전문 기자이자 경제 분석가입니다. 아래 뉴스를 바탕으로 단순 보도가 아닌, 시장의 흐름을 꿰뚫는 전문적인 리포트를 작성하세요. 
+                 JSON 구조: { "title": "...", "summary": "...", "category": "${targetCategory}", "content": "...", "notice_url": "...", "deadline": "null", "sector": "${sector}" }
+                 
+                 내용(content)은 마크다운으로 작성하고, 마지막에 "### ✒️ 기자의 시선: 시장 통찰" 평론을 인용구(> )와 함께 포함하세요. 
+                 단순 요약이 아니라 '이 뉴스가 비즈니스 생태계에 미칠 파장'과 '기업들이 준비해야 할 대응 전략'을 날카롭게 서술하세요.
+                 
+                 원문 제목: ${item.title}\n내용: ${item.description}\n출처: ${item.source}`;
 
             const aiResponse = await callGeminiSafe(prompt);
             let jsonStr = aiResponse.trim();
@@ -163,20 +217,27 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const raw = JSON.parse(jsonStr);
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
-            const { error: insertError } = await adminClient.from('posts').insert([{
+            
+            const postData = {
               title: raw.title,
-              summary: raw.summary,
-              category: targetCategory,
+              summary: `[${raw.sector || sector}] ` + raw.summary,
+              category: raw.category || targetCategory,
               content: raw.content,
               notice_url: item.url,
               image_url: item.image,
               created_at: new Date().toISOString()
-            }]);
+            };
 
-            if (insertError) throw insertError;
-
-            results.push({ success: true, title: raw.title });
-            console.log(`[Pipeline] Successfully published: ${raw.title}`);
+            if (item.existingId) {
+              console.log(`[Pipeline] Updating existing news item: ${item.existingId}`);
+              await adminClient.from('posts').update(postData).eq('id', item.existingId);
+              results.push({ success: true, title: raw.title, action: 'updated' });
+            } else {
+              const { error: insertError } = await adminClient.from('posts').insert([postData]);
+              if (insertError) throw insertError;
+              results.push({ success: true, title: raw.title, action: 'inserted' });
+            }
+            console.log(`[Pipeline] Successfully published/updated: ${raw.title}`);
         } catch (e: any) {
             results.push({ success: false, error: e.message });
         }
@@ -200,10 +261,16 @@ export async function GET(request: Request) {
       const newsCategory = (kstDay % 2 === 0) ? 'tech' : '기업/마켓 뉴스';
       
       // 정부지원공고는 제한 해제(-1)하여 당일 전수 수집
-      await Promise.all([
+      const { sendNotification, formatBatchResult } = await import('@/lib/notifier');
+      
+      const [govResults, newsResults] = await Promise.all([
         publishByCategory('정부지원공고', -1),
         publishByCategory(newsCategory, 1)
       ]);
+
+      const allResults = [...govResults, ...newsResults];
+      const summary = formatBatchResult(allResults);
+      await sendNotification(summary);
 
       console.log(`[Background Cron] Successfully finished all tasks.`);
     } catch (err: any) {

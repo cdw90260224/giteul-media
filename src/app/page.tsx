@@ -11,6 +11,7 @@ const CAT_CONFIG: Record<string, { bg: string; text: string; border: string; lab
   'AI/Tech': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
   'ai/tech': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
   '기업/마켓 뉴스': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', label: 'Market' },
+  '창업 뉴스': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Startup' },
   '글로벌 뉴스': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', label: 'Global' },
 };
 const DEFAULT_CAT = { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', label: 'REPORT' };
@@ -33,6 +34,8 @@ const FILTER_KEYWORDS: Record<string, Record<string, string[]>> = {
 const ALL_TIMELINES = ['전체', '오늘 등록', '마감 임박(D-3)', '상시 모집'];
 const ALL_STAGES = ['예비창업', '초기(3년 미만)', '도약(7년 미만)', '성장(7년 이상)'];
 const ALL_BENEFITS = ['자금지원', 'R&D', '공간지원', '교육·멘토링', '수출·마케팅'];
+const ALL_SECTORS = ['전체', '농업', '기술/IT', '소상공인'];
+const INTEREST_SECTORS_KEY = 'giteul_interest_sectors';
 
 // 주관기관 파싱 헬퍼
 function parseTitle(title: string) {
@@ -56,6 +59,21 @@ function parseTitle(title: string) {
   return { title: clean, institution: '공공기관' };
 }
 
+function SectorBadge({ sector }: { sector: string }) {
+  if (!sector || sector === '일반') return null;
+  const colors: Record<string, string> = {
+    '농업': 'bg-green-50 text-green-700 border-green-200',
+    '기술/IT': 'bg-blue-50 text-blue-700 border-blue-200',
+    '소상공인': 'bg-orange-50 text-orange-700 border-orange-200'
+  };
+  const colorClass = colors[sector] || 'bg-slate-50 text-slate-700 border-slate-200';
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black border ${colorClass} tracking-tight ml-2`}>
+      {sector}
+    </span>
+  );
+}
+
 function DDayBadge({ deadline, category, className = "" }: { deadline?: string, category?: string, className?: string }) {
   const isGov = category === '정부지원공고' || category === 'Strategy' || category?.toLowerCase() === 'strategy';
   const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(category || '');
@@ -63,8 +81,9 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
 
   const renderNoDeadline = () => {
     if (isGov) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border-blue-100 border ${className}`}>[상시]</span>;
-    if (isTech) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-600 border-purple-100 border ${className}`}>기술</span>;
-    if (isMarket) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-teal-50 text-teal-600 border-teal-100 border ${className}`}>시장</span>;
+    if (isTech) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-600 border-purple-100 border ${className}`}>TECH</span>;
+    if (isMarket) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-teal-50 text-teal-600 border-teal-100 border ${className}`}>마켓</span>;
+    if (category === '창업 뉴스') return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-red-600 text-white border-red-600 border shadow-sm ${className}`}>창업</span>;
     return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border-slate-200 border ${className}`}>뉴스</span>;
   };
 
@@ -100,7 +119,8 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState<string>('전체');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<{ timeline: string; stages: string[]; benefits: string[]; }>({ timeline: '전체', stages: [], benefits: [] });
+  const [filters, setFilters] = useState<{ timeline: string; stages: string[]; benefits: string[]; sector: string; }>({ timeline: '전체', stages: [], benefits: [], sector: '전체' });
+  const [interestSectors, setInterestSectors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const POSTS_PER_PAGE = 10;
 
@@ -114,11 +134,16 @@ export default function Home() {
       const t = params.get('timeline');
       const s = params.get('stages');
       const b = params.get('benefits');
+      const sec = params.get('sector');
       setFilters({
         timeline: t || '전체',
         stages: s ? s.split(',') : [],
         benefits: b ? b.split(',') : [],
+        sector: sec || '전체'
       });
+      // 관심분야 로컬스토리지 복구
+      const saved = localStorage.getItem(INTEREST_SECTORS_KEY);
+      if (saved) setInterestSectors(JSON.parse(saved));
     }
   }, []);
 
@@ -131,6 +156,8 @@ export default function Home() {
       else params.set('stages', newFilters.stages.join(','));
       if (newFilters.benefits.length === 0) params.delete('benefits');
       else params.set('benefits', newFilters.benefits.join(','));
+      if (newFilters.sector === '전체') params.delete('sector');
+      else params.set('sector', newFilters.sector);
       
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.pushState(null, '', newUrl);
@@ -201,12 +228,12 @@ export default function Home() {
     .sort((a, b) => getSimulatedViews(b) - getSimulatedViews(a))
     .slice(0, 5);
 
-  const magazineList = strategyPosts.slice(0, 4);
+  const magazineList = [...strategyPosts, ...govSupportPosts.slice(0, 2), ...techPosts.slice(0, 2)].slice(0, 4);
   const filteredItems = activeCategory === '전체' 
     ? newsItems 
     : newsItems.filter(i => {
         if (activeCategory === 'strategy') return i.category?.toLowerCase() === 'strategy' || i.category === '정부지원공고';
-        if (activeCategory === 'news') return ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech', '기업/마켓 뉴스'].includes(i.category);
+        if (activeCategory === 'news') return ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech', '기업/마켓 뉴스', '창업 뉴스'].includes(i.category);
         return i.category === activeCategory;
       });
     
@@ -220,19 +247,22 @@ export default function Home() {
   
   const allInfinityList = [...baseInfinityList].sort((a, b) => {
     const getRank = (item: any) => {
+      // 0순위: 사용자 설정 관심분야 매칭 (가장 최상단)
+      const isInterest = interestSectors.some(sec => item.summary?.includes(`[${sec}]`));
+      
       if (item.deadline_date) {
         const dDate = new Date(item.deadline_date);
         if (!isNaN(dDate.getTime())) {
           dDate.setHours(0,0,0,0);
           const diffDays = Math.ceil((dDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          // 1순위: 마감 임박 공고 (D-Day 남은 순서대로)
-          if (diffDays >= 0) return { group: 1, val: diffDays };
-          // 3순위: 마감 완료 공고 (가장 마지막으로 밀어냄)
+          // 마감 임박 공고 (관심분야면 group 0, 아니면 group 1)
+          if (diffDays >= 0) return { group: isInterest ? 0 : 1, val: diffDays };
+          // 마감 완료 공고 (가장 마지막)
           if (diffDays < 0) return { group: 3, val: new Date(item.created_at).getTime() * -1 };
         }
       }
-      // 2순위: 일반 뉴스 및 상시 공고 (최신 발행순)
-      return { group: 2, val: new Date(item.created_at).getTime() * -1 };
+      // 일반 뉴스 및 상시 공고 (관심분야면 group 0, 아니면 group 2)
+      return { group: isInterest ? 0 : 2, val: new Date(item.created_at).getTime() * -1 };
     };
     const rankA = getRank(a);
     const rankB = getRank(b);
@@ -327,9 +357,9 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 섹션 1: 메인 히어로 (MSN 스타일 7:3 분할) */}
-        <section className="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-24 animate-fade-in">
+        <section className="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-12 animate-fade-in">
           {/* 좌측: Hero (7) */}
           <div className="lg:col-span-12 xl:col-span-7 bg-white rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-900/5 border border-gray-100 group transition-all duration-500 hover:shadow-blue-900/10">
             <LinkNext href={`/article/${heroMain.id}`}>
@@ -369,12 +399,17 @@ export default function Home() {
                     <div className="flex flex-col gap-3 min-w-0">
                       <div className="flex items-center gap-2">
                          <DDayBadge deadline={item.deadline_date} category={item.category} className="!scale-100 !rounded-none !py-0.5" />
-                         <span className={`text-[10px] font-black tracking-widest transition-colors ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-400 group-hover:text-purple-600' : item.category === '기업/마켓 뉴스' ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-400 group-hover:text-blue-600'}`}>
-                           {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? '기술' : item.category === '기업/마켓 뉴스' ? '시장' : item.category}
+                         <span className={`text-[10px] font-black tracking-widest transition-colors ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-400 group-hover:text-purple-600' : item.category === '창업 뉴스' ? 'text-red-500 group-hover:text-red-700' : item.category === '기업/마켓 뉴스' ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-400 group-hover:text-blue-600'}`}>
+                           {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'TECH' : item.category === '창업 뉴스' ? '창업' : item.category === '기업/마켓 뉴스' ? '마켓' : item.category}
                          </span>
                       </div>
-                      <h4 className="text-[15px] font-extrabold text-slate-800 truncate tracking-wide group-hover:text-slate-900 transition-colors">{title}</h4>
-                      <p className="text-[12px] text-slate-500 font-bold tracking-wider">{institution}</p>
+                      <h4 className="text-[18px] font-black text-slate-800 truncate tracking-wide group-hover:text-slate-900 transition-colors">
+                        {title}
+                        {item.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
+                          <SectorBadge sector={item.summary.match(/^\[(.*?)\]/)[1]} />
+                        )}
+                      </h4>
+                      <p className="text-[14px] text-slate-500 font-bold tracking-wider">{institution}</p>
                     </div>
                   </LinkNext>
                 );
@@ -384,7 +419,7 @@ export default function Home() {
         </section>
 
         {/* 섹션 2: 매거진형 격자 (딱 한 줄만!) */}
-        <section className="mb-20">
+        <section className="mb-12">
           <div className="flex justify-between items-end mb-8 border-b border-slate-100 pb-6">
             <h3 className="text-2xl font-black text-slate-900 tracking-wide">지원 전략 및 트렌드</h3>
           </div>
@@ -396,20 +431,22 @@ export default function Home() {
               const defaultImg = isGov ? govLogo : techImg;
               return (
                 <LinkNext key={item.id} href={`/article/${item.id}`} className="group bg-white rounded-[2rem] shadow-sm border border-slate-100 p-6 transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/5 flex flex-col min-w-0">
-                  <div className="aspect-video bg-slate-50 rounded-2xl mb-5 overflow-hidden">
-                    <div className={isGov ? "w-full h-full flex items-center justify-center p-6 bg-white" : "w-full h-full"}>
-                      <img 
-                        src={(isGov && !item.image_url?.includes('unsplash') && !item.image_url?.includes('wikimedia')) ? govLogo : (item.image_url || defaultImg)} 
-                        alt="Thumbnail" 
-                        className={isGov ? "max-w-[80%] max-h-[80%] object-contain" : "w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700"}
-                        onError={(e: any) => { 
-                          if (isGov) e.target.src = 'https://www.k-startup.go.kr/static/portal/img/logo_kstartup.png';
-                          else e.target.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71';
-                        }}
-                      />
-                    </div>
+                  <div className="aspect-[3/2] bg-slate-50 rounded-2xl mb-5 overflow-hidden">
+                    <img 
+                      src={item.image_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop'} 
+                      alt="Thumbnail" 
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      onError={(e: any) => { 
+                        e.target.src = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=800&auto=format&fit=crop';
+                      }}
+                    />
                   </div>
-                  <h4 className="text-[16px] font-bold text-slate-900 truncate tracking-wide mb-3 group-hover:text-blue-600 w-full inline-block">{parseTitle(item.title).title}</h4>
+                  <h4 className="text-[18px] font-black text-slate-900 truncate tracking-wide mb-3 group-hover:text-blue-600 w-full inline-block">
+                    {parseTitle(item.title).title}
+                    {item.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
+                      <SectorBadge sector={item.summary.match(/^\[(.*?)\]/)[1]} />
+                    )}
+                  </h4>
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
                     <span className="text-[12px] font-black text-slate-400">#인사이트</span>
                     <span className="text-[11px] font-bold text-slate-400">{new Date(item.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</span>
@@ -448,11 +485,31 @@ export default function Home() {
 
             {/* 필터 패널 */}
             {showFilters && (
-              <div className="w-full bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-sm text-left animate-in fade-in slide-in-from-top-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="w-full bg-white border border-slate-200 rounded-3xl p-10 mb-10 shadow-xl text-left animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+                  {/* 분야 (Sector) */}
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-slate-900"></span>분야별 필터 (Sector)</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {ALL_SECTORS.map(sec => (
+                        <button
+                          key={sec}
+                          onClick={() => {
+                            const next = { ...filters, sector: sec };
+                            setFilters(next);
+                            updateURLFilters(next);
+                            setCurrentPage(1);
+                          }}
+                          className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border ${filters.sector === sec ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                          {sec}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   {/* 시기 */}
                   <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-3 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>시기 (Timeline)</h4>
+                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>시기 (Timeline)</h4>
                     <div className="flex flex-wrap gap-2">
                       {ALL_TIMELINES.map(t => (
                         <button
@@ -467,7 +524,7 @@ export default function Home() {
                   </div>
                   {/* 대상 */}
                   <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-3 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>대상 (Stage)</h4>
+                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>대상 (Stage)</h4>
                     <div className="flex flex-wrap gap-2">
                       {ALL_STAGES.map(s => {
                         const isSelected = filters.stages.includes(s);
@@ -485,7 +542,7 @@ export default function Home() {
                   </div>
                   {/* 유형 */}
                   <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-3 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>유형 (Benefit)</h4>
+                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>유형 (Benefit)</h4>
                     <div className="flex flex-wrap gap-2">
                       {ALL_BENEFITS.map(b => {
                         const isSelected = filters.benefits.includes(b);
@@ -499,6 +556,34 @@ export default function Home() {
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-12 pt-10 border-t border-slate-100">
+                   <div className="flex items-center gap-3 mb-6">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Personalized Interest Center</span>
+                  </div>
+                  <div className="flex flex-col md:flex-row md:items-center gap-8">
+                    <div className="flex-1">
+                      <h5 className="text-[17px] font-black text-slate-900 tracking-tight mb-2">당신의 관심 분야를 알려주세요. ★</h5>
+                      <p className="text-[12px] text-slate-500 font-bold tracking-tight italic">설정하신 분야의 공고와 뉴스가 최상단에 우선 배치됩니다.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {ALL_SECTORS.filter(s => s !== '전체').map(sec => (
+                        <button
+                          key={sec}
+                          onClick={() => toggleInterestSector(sec)}
+                          className={`px-6 py-3 rounded-2xl text-[13px] font-black transition-all border flex items-center gap-2 ${
+                            interestSectors.includes(sec)
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-100 scale-105'
+                              : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          {sec}
+                          {interestSectors.includes(sec) && <span className="text-yellow-300">★</span>}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -528,8 +613,15 @@ export default function Home() {
                   </span>
                 ))}
                 
+                {filters.sector !== '전체' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-full text-[11px] font-bold">
+                    {filters.sector}
+                    <button onClick={() => { const next = { ...filters, sector: '전체' }; setFilters(next); updateURLFilters(next); }} className="hover:text-slate-300 rounded-full focus:outline-none"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  </span>
+                )}
+                
                 <button 
-                  onClick={() => { setFilters({ timeline: '전체', stages: [], benefits: [] }); updateURLFilters({ timeline: '전체', stages: [], benefits: [] }); setCurrentPage(1); }} 
+                  onClick={() => { setFilters({ timeline: '전체', stages: [], benefits: [], sector: '전체' }); updateURLFilters({ timeline: '전체', stages: [], benefits: [], sector: '전체' }); setCurrentPage(1); }} 
                   className="text-[11px] font-bold text-slate-400 hover:text-slate-800 underline underline-offset-2 ml-2"
                 >
                   초기화
@@ -537,16 +629,16 @@ export default function Home() {
               </div>
             )}
 
-            <div className="h-px bg-slate-100 w-full" />
+          <div className="h-0.5 bg-slate-100 w-full mb-12" />
+        </div>
+        
+        {finalFilteredList.length === 0 ? (
+          <div className="py-20 text-center bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <span className="text-5xl block mb-4 opacity-20">🍃</span>
+            <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">검색 결과가 없습니다.</p>
           </div>
-          
-          {finalFilteredList.length === 0 ? (
-            <div className="py-24 text-center bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <span className="text-5xl block mb-6 opacity-20">🍃</span>
-              <p className="text-slate-400 font-bold tracking-widest uppercase text-sm">검색 결과가 없습니다.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-50">
+        ) : (
+          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-50">
             {infinityList.map((item, idx) => {
               const { title, institution } = parseTitle(item.title);
               return (
@@ -557,13 +649,26 @@ export default function Home() {
                   style={{ animationDelay: `${idx * 0.05}s` }}
                 >
                   <div className="flex items-center gap-8 min-w-0 flex-1">
+                    <div className="hidden sm:block shrink-0 w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+                      <img 
+                        src={item.image_url || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=200&auto=format&fit=crop'} 
+                        alt="Thumbnail" 
+                        className="w-full h-full object-cover"
+                        onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=200&auto=format&fit=crop'; }}
+                      />
+                    </div>
                     <DDayBadge deadline={item.deadline_date} category={item.category} className="shrink-0 w-16 text-center py-1.5 !text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm" />
-                    <div className="min-w-0 flex-1 overflow-hidden" style={{ maxWidth: 'calc(100% - 30px)' }}>
-                      <h4 className="text-[17px] font-bold text-slate-800 group-hover:text-blue-600 transition-colors truncate tracking-wide">{title}</h4>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <h4 className="text-[18px] font-black text-slate-800 group-hover:text-blue-600 transition-colors truncate tracking-wide">
+                        {title}
+                        {item.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
+                          <SectorBadge sector={item.summary.match(/^\[(.*?)\]/)[1]} />
+                        )}
+                      </h4>
                       <p className="text-[13px] text-slate-500 mt-2 font-medium flex items-center gap-3">
-                         <span className={`font-bold ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-600' : item.category === '기업/마켓 뉴스' ? 'text-teal-600' : 'text-blue-600'}`}>
-                           {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? '기술' : item.category === '기업/마켓 뉴스' ? '시장' : item.category}
-                         </span>
+                          <span className={`font-bold ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-600' : item.category === '창업 뉴스' ? 'text-red-600' : item.category === '기업/마켓 뉴스' ? 'text-teal-600' : 'text-blue-600'}`}>
+                            {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'TECH' : item.category === '창업 뉴스' ? '창업' : item.category === '기업/마켓 뉴스' ? '마켓' : item.category}
+                          </span>
                          <span className="opacity-20 text-slate-900">|</span>
                          <span>주관: {institution}</span>
                          <span className="opacity-20 text-slate-900">|</span>
@@ -618,22 +723,22 @@ export default function Home() {
 
       </main>
 
-      <footer className="bg-slate-950 py-32 mt-20 text-center">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-12">
+      <footer className="bg-white py-16 mt-16 border-t border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
           <div className="flex items-center gap-2">
-            <span className="text-4xl font-black text-white tracking-tighter">기틀</span>
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
+            <div className="w-2 h-2 rounded-full bg-blue-600" />
           </div>
-          <p className="text-slate-500 text-sm font-medium tracking-widest max-w-md mx-auto leading-relaxed">
+          <p className="text-slate-500 text-xs font-bold tracking-widest max-w-md mx-auto leading-relaxed">
             기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.
           </p>
-          <div className="flex gap-8">
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Intelligence</span>
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Strategy</span>
-            <span className="text-slate-600 text-[11px] font-black tracking-[0.3em] uppercase">Growth</span>
+          <div className="flex gap-6">
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Intelligence</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Strategy</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Growth</span>
           </div>
-          <div className="h-px w-24 bg-slate-800" />
-          <p className="text-slate-700 text-[10px] font-bold uppercase tracking-widest">© 2026 Giteul AI Media. All Rights Reserved.</p>
+          <div className="h-px w-16 bg-slate-100" />
+          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em]">© 2026 Giteul AI Media Portal.</p>
         </div>
       </footer>
 

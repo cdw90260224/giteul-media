@@ -603,44 +603,41 @@ export default function Home() {
             <p className="text-slate-500 font-bold text-base max-w-2xl">기틀 AI가 수집한 미가공 데이터를 정제하여 핵심 인사이트를 도출합니다. 사업 성장을 위한 데이터 기반 의사결정을 시작하세요.</p>
           </div>
 
-          <div className="flex relative overflow-hidden group/container">
-            {/* Left Content: Expandable Grid */}
-            <div className={`transition-all duration-700 ease-in-out shrink-0 ${isSidebarOpen ? 'w-full lg:w-[calc(100%-340px)] pr-0 lg:pr-12' : 'w-full'}`}>
-              <div className="flex items-center justify-between mb-12">
-                <div className="flex items-center gap-2 bg-slate-900 w-fit p-1.5 rounded-2xl shadow-2xl">
-                  {[
-                    { id: 'all', label: 'ALL UPDATES' },
-                    { id: 'new', label: 'NEW TODAY' },
-                    { id: 'closing', label: 'CLOSING SOON' },
-                    { id: 'interest', label: 'FOR YOU' },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => { setActiveTab(tab.id as any); setCurrentPage(1); }}
-                      className={`px-8 py-3 rounded-xl text-[11px] font-black transition-all tracking-widest ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-xl scale-105' : 'text-slate-400 hover:text-white'}`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {!isSidebarOpen && (
-                  <button 
-                    onClick={() => setIsSidebarOpen(true)}
-                    className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[11px] tracking-widest uppercase hover:bg-slate-900 transition-all shadow-2xl shadow-blue-600/20 animate-fade-in"
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left Column: Mosaic Intelligence Grid */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-4 mb-10">
+                <div className="flex items-center gap-2 bg-slate-900 w-fit p-1 rounded-xl shadow-2xl">
+                {[
+                  { id: 'all', label: 'ALL UPDATES' },
+                  { id: 'new', label: 'NEW TODAY' },
+                  { id: 'closing', label: 'CLOSING SOON' },
+                  { id: 'interest', label: 'FOR YOU' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as any); setCurrentPage(1); }}
+                    className={`px-6 py-2.5 rounded-lg text-[10px] font-black transition-all tracking-widest ${activeTab === tab.id ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
-                    Analysis Filters
+                    {tab.label}
                   </button>
-                )}
+                ))}
+                </div>
+                <button
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-slate-900 transition-all shadow-lg whitespace-nowrap"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+                  {isSidebarOpen ? '필터 닫기' : '필터 열기'}
+                </button>
               </div>
 
               {finalFilteredList.length === 0 ? (
-                <div className="py-48 text-center bg-white border-2 border-slate-100 rounded-[4rem] shadow-sm">
+                <div className="py-48 text-center bg-white border-2 border-slate-100 rounded-[3rem] shadow-sm">
                    <p className="text-slate-300 font-black uppercase tracking-[0.3em] text-sm">Waiting for incoming data stream...</p>
                 </div>
               ) : (
-                <div className={`grid grid-cols-1 ${!isSidebarOpen ? 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3' : 'md:grid-cols-1 lg:grid-cols-2'} gap-px bg-slate-200 border-2 border-slate-200 rounded-[3rem] overflow-hidden shadow-3xl shadow-slate-900/10 transition-all duration-700`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border-2 border-slate-200 rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-900/10">
                   {infinityList.map((item, idx) => {
                     const { title, institution } = parseTitle(item.title);
                     const isNew = new Date(item.created_at).toDateString() === new Date().toDateString();
@@ -651,105 +648,8 @@ export default function Home() {
                       <LinkNext 
                         key={item.id} 
                         href={`/article/${item.id}`}
-                        className={`group bg-white p-10 lg:p-14 transition-all hover:bg-slate-50 relative flex flex-col min-h-[400px] ${isSpotlight ? (!isSidebarOpen ? 'md:col-span-2 lg:col-span-3' : 'md:col-span-2') : ''}`}
+                        className={`group bg-white p-12 transition-all hover:bg-slate-50 relative flex flex-col min-h-[360px] ${isSpotlight ? 'md:col-span-2' : ''}`}
                       >
-                         <div className="flex justify-between items-center mb-8">
-                            <DDayBadge deadline={item.deadline_date} category={item.category} className="scale-110" />
-                            <div className="flex gap-2">
-                              {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 border border-amber-100 uppercase tracking-tighter">Recommended</span>}
-                              {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">New Entry</span>}
-                            </div>
-                         </div>
-                         
-                         <div className="flex flex-col gap-6 flex-1">
-                           <div className="flex items-center gap-3">
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{item.category}</span>
-                              <span className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">{institution}</span>
-                           </div>
-                           
-                           <h4 className={`${isSpotlight ? 'text-4xl' : 'text-2xl'} font-black text-slate-900 tracking-tighter leading-[1.15] group-hover:text-blue-700 transition-colors`}>
-                             {title}
-                           </h4>
-                           
-                           <p className="text-[14px] text-slate-500 font-bold line-clamp-2 leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity">
-                             {item.summary?.replace(/^\[.*?\]\s*/, '')}
-                           </p>
-                         </div>
-
-                         <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
-                            <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Proprietary Analysis Complete</span>
-                            <span className="text-slate-900 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-black text-sm">ANALYSIS REPORT →</span>
-                         </div>
-                      </LinkNext>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Right Side: Collapsible Intelligence Panel */}
-            <aside className={`fixed lg:relative right-0 top-0 h-screen lg:h-auto z-[60] bg-white transition-all duration-700 ease-in-out border-l-2 border-slate-900 ${isSidebarOpen ? 'w-[340px] opacity-100 translate-x-0' : 'w-0 opacity-0 translate-x-full'}`}>
-               <div className="flex flex-col h-full lg:sticky lg:top-28 lg:max-h-[85vh] w-[340px]">
-                  <div className="p-8 border-b-2 border-slate-900 bg-slate-50 flex items-center justify-between shrink-0">
-                     <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" />
-                        <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900">Analysis Metrics</h5>
-                     </div>
-                     <button onClick={() => setIsSidebarOpen(false)} className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center transition-colors">
-                        <svg className="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                     </button>
-                  </div>
-                  
-                  <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-12">
-                     {/* Filter Items */}
-                     <div className="group">
-                        <p className="text-[12px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center gap-2">타임라인</p>
-                        <div className="flex flex-col gap-3">
-                           {ALL_TIMELINES.map(t => (
-                              <button key={t} onClick={() => handleTimelineChange(t)} className={`text-left text-[14px] font-bold transition-all hover:translate-x-1 ${filters.timeline === t ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}>{t} {filters.timeline === t && '◦'}</button>
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="group">
-                        <p className="text-[12px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center gap-2">기업성장단계</p>
-                        <div className="flex flex-col gap-3">
-                           {ALL_STAGES.map(s => (
-                              <button key={s} onClick={() => handleFilterToggle('stages', s)} className={`flex items-center gap-3 text-left text-[14px] font-bold transition-all ${filters.stages.includes(s) ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}>
-                                <div className={`w-3 h-3 rounded-sm border-2 ${filters.stages.includes(s) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`} />
-                                {s}
-                              </button>
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="group">
-                        <p className="text-[12px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center gap-2">지원혜택 & 운영주체</p>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                           {ALL_BENEFITS.map(b => (
-                              <button key={b} onClick={() => handleFilterToggle('benefits', b)} className={`px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all ${filters.benefits.includes(b) ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-400 border-slate-200 hover:border-slate-400'}`}>{b}</button>
-                           ))}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                           {ALL_OPERATORS.map(op => (
-                              <button key={op} onClick={() => { setFilters({...filters, operator: op}); updateURLFilters({...filters, operator: op}); }} className={`px-3 py-1.5 rounded-lg text-[11px] font-black border transition-all ${filters.operator === op ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}>{op}</button>
-                           ))}
-                        </div>
-                     </div>
-
-                     <div className="group pt-10 border-t border-slate-100">
-                        <p className="text-[12px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center gap-2">키워드 검색</p>
-                        <input type="text" placeholder="입력 후 엔터..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold placeholder:text-slate-300 focus:border-slate-900 transition-all outline-none" />
-                     </div>
-                  </div>
-
-                  <div className="p-8 bg-white border-t-2 border-slate-900 shrink-0">
-                     <button onClick={() => { const r = {timeline: '전체', stages: [], benefits: [], sector: '전체', region: '전체', target: '전체', scale: '전체', operator: '전체'}; setFilters(r); setSearchQuery(''); updateURLFilters(r); }} className="w-full bg-slate-900 text-white py-4 rounded-xl text-[11px] font-black tracking-[0.2em] uppercase hover:bg-blue-600 transition-all shadow-lg active:scale-95">Reset Metrics</button>
-                  </div>
-               </div>
-            </aside>
-          </div>
                         <div className="flex justify-between items-center mb-8">
                            <DDayBadge deadline={item.deadline_date} category={item.category} className="scale-110" />
                            <div className="flex gap-2">
@@ -790,10 +690,180 @@ export default function Home() {
                   <button 
                     onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
                     disabled={currentPage === 1}
-                            </div>
-          </div>
-        </section>
-reg ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                    className="w-12 h-12 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all disabled:opacity-0"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => { setCurrentPage(pageNum); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
+                        className={`w-12 h-12 rounded-full text-xs font-black transition-all ${currentPage === pageNum ? 'bg-slate-900 text-white shadow-2xl scale-110' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
+                    disabled={currentPage === totalPages}
+                    className="w-12 h-12 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all disabled:opacity-0"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Sliding Drawer Sidebar */}
+            <aside className={`lg:w-80 shrink-0 relative transition-all duration-500 ease-in-out overflow-hidden ${isSidebarOpen ? 'max-w-xs opacity-100' : 'max-w-0 opacity-0 w-0'}`}>
+               <div className="bg-white border-2 border-slate-900 rounded-[2.5rem] sticky top-28 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[80vh] w-80">
+                  <div className="p-7 border-b-2 border-slate-900 bg-slate-50 flex items-center justify-between shrink-0">
+                     <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900">데이터 필터 센터</h5>
+                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  </div>
+                  
+                  {/* Scrollable Content Area */}
+                  <div className="p-7 overflow-y-auto custom-scrollbar flex-1 space-y-10 group/scroll">
+                     {/* 1. Timeline */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 타임라인
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_TIMELINES.map(t => (
+                              <button 
+                                key={t} 
+                                onClick={() => handleTimelineChange(t)}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.timeline === t ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {t} {filters.timeline === t && '◦'}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 2. Target (개인/법인) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원대상
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_TARGETS.map(tar => (
+                              <button 
+                                key={tar} 
+                                onClick={() => { const next = { ...filters, target: tar }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.target === tar ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {tar}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 3. Scale (지원규모) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원규모
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_SCALES.map(s => (
+                              <button 
+                                key={s} 
+                                onClick={() => { const next = { ...filters, scale: s }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.scale === s ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {s} {filters.scale === s && '◦'}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 4. Operator (운영주체) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 운영주체
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_OPERATORS.map(op => (
+                              <button 
+                                key={op} 
+                                onClick={() => { const next = { ...filters, operator: op }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.operator === op ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {op}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 5. Scale / Stage */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 기업성장단계
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_STAGES.map(s => (
+                              <button 
+                                key={s} 
+                                onClick={() => handleFilterToggle('stages', s)}
+                                className={`flex items-center gap-2 text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.stages.includes(s) ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                <div className={`w-2.5 h-2.5 rounded-sm border ${filters.stages.includes(s) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`} />
+                                {s}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 6. Benefit Types */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원혜택유형
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_BENEFITS.map(b => (
+                              <button 
+                                key={b} 
+                                onClick={() => handleFilterToggle('benefits', b)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.benefits.includes(b) ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {b}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 7. Sector focus */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 산업분야
+                        </p>
+                        <div className="grid grid-cols-1 gap-2.5">
+                           {ALL_SECTORS.map(sec => (
+                              <button 
+                                key={sec} 
+                                onClick={() => { const next = { ...filters, sector: sec }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.sector === sec ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {sec}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 8. Region */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지역구분
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_REGIONS.map(reg => (
+                              <button 
+                                key={reg} 
+                                onClick={() => { const next = { ...filters, region: reg }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.region === reg ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
                               >
                                 {reg}
                               </button>
@@ -836,7 +906,6 @@ reg ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-20
         </section>
       </main>
 
-      {/* Footer Removed Scroll-to-top */}
       <footer className="bg-white py-24 mt-24 border-t-2 border-slate-100 text-center">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-10">
           <LinkNext href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -856,6 +925,7 @@ reg ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-20
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.4em]">© 2026 Giteul AI Media Portal. All rights reserved.</p>
         </div>
       </footer>
+
     </div>
   );
 }

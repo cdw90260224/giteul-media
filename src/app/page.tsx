@@ -650,7 +650,7 @@ export default function Home() {
                         href={`/article/${item.id}`}
                         className={`group bg-white p-12 transition-all hover:bg-slate-50 relative flex flex-col min-h-[360px] ${isSpotlight ? 'md:col-span-2' : ''}`}
                       >
-                        <div className="flex justify-between items-center mb-8">
+                        <div className="flex justify-between items-start mb-8">
                            <DDayBadge deadline={item.deadline_date} category={item.category} className="scale-110" />
                            <div className="flex gap-2">
                              {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 border border-amber-100 uppercase tracking-tighter">Recommended</span>}

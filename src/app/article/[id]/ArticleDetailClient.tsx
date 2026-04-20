@@ -273,7 +273,6 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 <div className="space-y-4 relative z-10">
                     <span className="text-blue-400 text-xs font-black uppercase tracking-[0.5em] animate-pulse italic">Professional Insight Upgrade</span>
                     <h4 className="text-white text-3xl font-black tracking-tighter leading-tight">이 공고의 '사업계획서 실전 전략' 정보가 아직 부족한가요?</h4>
-                    <p className="text-white/60 text-xl font-medium italic">이미 탑재된 Gemini 2.0 Flash 엔진으로 실시간 전략 분석을 시작합니다.</p>
                 </div>
                 <button 
                   onClick={handleUpgradeStrategy}

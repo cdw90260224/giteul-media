@@ -272,6 +272,11 @@ export async function GET(request: Request) {
       const summary = formatBatchResult(allResults);
       await sendNotification(summary);
 
+      // [Newsletter Trigger] 수집 및 가공 직후 구독자들에게 맞춤 메일 발송
+      console.log('[Pipeline] Triggering Newsletter Dispatch...');
+      const { processAndSendNewsletter } = await import('@/lib/newsletter-engine');
+      await processAndSendNewsletter();
+
       console.log(`[Background Cron] Successfully finished all tasks.`);
     } catch (err: any) {
       console.error('[Background Cron] FATAL ERROR:', err.message);

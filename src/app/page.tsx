@@ -5,14 +5,14 @@ import LinkNext from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 // 카테고리별 컬러 시스템
-const CAT_CONFIG: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  '정부지원공고': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'Gov Strategy' },
-  'AI/테크 트렌드': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
-  'AI/Tech': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
-  'ai/tech': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', label: 'AI/Tech' },
-  '기업/마켓 뉴스': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', label: 'Market' },
-  '창업 뉴스': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', label: 'Startup' },
-  '글로벌 뉴스': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', label: 'Global' },
+const CAT_CONFIG: Record<string, { bg: string; text: string; border: string; label: string; accent: string }> = {
+  '정부지원공고': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STRATEGY', accent: 'bg-blue-600' },
+  'AI/테크 트렌드': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
+  'AI/Tech': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
+  'ai/tech': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
+  '기업/마켓 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'MARKET', accent: 'bg-teal-600' },
+  '창업 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STARTUP', accent: 'bg-red-600' },
+  '글로벌 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'GLOBAL', accent: 'bg-amber-600' },
 };
 const DEFAULT_CAT = { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', label: 'REPORT' };
 
@@ -35,6 +35,10 @@ const ALL_TIMELINES = ['전체', '오늘 등록', '마감 임박(D-3)', '상시 
 const ALL_STAGES = ['예비창업', '초기(3년 미만)', '도약(7년 미만)', '성장(7년 이상)'];
 const ALL_BENEFITS = ['자금지원', 'R&D', '공간지원', '교육·멘토링', '수출·마케팅'];
 const ALL_SECTORS = ['전체', '농업', '기술/IT', '소상공인'];
+const ALL_REGIONS = ['전체', '전국', '서울', '경기', '인천', '부울경', '해외'];
+const ALL_TARGETS = ['전체', '개인', '법인', '관계없이'];
+const ALL_SCALES = ['전체', '~1천만원', '~5천만원', '1억원 이상', '미정/문의'];
+const ALL_OPERATORS = ['전체', '정부/지자체', '민간/기타'];
 const INTEREST_SECTORS_KEY = 'giteul_interest_sectors';
 
 // 주관기관 파싱 헬퍼
@@ -80,11 +84,11 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
   const isMarket = category === '기업/마켓 뉴스';
 
   const renderNoDeadline = () => {
-    if (isGov) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border-blue-100 border ${className}`}>[상시]</span>;
-    if (isTech) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-600 border-purple-100 border ${className}`}>TECH</span>;
-    if (isMarket) return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-teal-50 text-teal-600 border-teal-100 border ${className}`}>마켓</span>;
-    if (category === '창업 뉴스') return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-red-600 text-white border-red-600 border shadow-sm ${className}`}>창업</span>;
-    return <span className={`inline-block px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border-slate-200 border ${className}`}>뉴스</span>;
+    if (isGov) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>STRATEGY</span>;
+    if (isTech) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-purple-600 text-white tracking-widest ${className}`}>TECH</span>;
+    if (isMarket) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-teal-600 text-white tracking-widest ${className}`}>MARKET</span>;
+    if (category === '창업 뉴스') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-red-600 text-white tracking-widest ${className}`}>STARTUP</span>;
+    return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-slate-400 text-white tracking-widest ${className}`}>NEWS</span>;
   };
 
   if (!deadline) return renderNoDeadline();
@@ -102,12 +106,12 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
   let color = 'bg-slate-900 text-white';
 
   if (days === 0) { label = 'D-DAY'; color = 'bg-red-600 text-white'; }
-  else if (days < 0) { label = '마감완료'; color = 'bg-slate-300 text-slate-600'; }
-  else if (days <= 7) { label = `D-${days}`; color = 'bg-red-600 text-white'; }
-  else if (days > 7) { label = `D-${days}`; color = 'bg-slate-100 text-slate-600 border border-slate-200'; }
+  else if (days < 0) { label = 'EXPIRED'; color = 'bg-slate-300 text-slate-500'; }
+  else if (days <= 3) { label = `D-${days}`; color = 'bg-red-600 text-white'; }
+  else if (days > 3) { label = `D-${days}`; color = 'bg-slate-100 text-slate-800 border border-slate-200'; }
 
   return (
-    <span className={`inline-block px-2.5 py-1 rounded text-[11px] font-black uppercase tracking-wider ${color} ${className}`}>
+    <span className={`inline-block px-2 py-1 rounded-sm text-[10px] font-black tracking-tighter ${color} ${className}`}>
       {label}
     </span>
   );
@@ -119,9 +123,29 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState<string>('전체');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<{ timeline: string; stages: string[]; benefits: string[]; sector: string; }>({ timeline: '전체', stages: [], benefits: [], sector: '전체' });
+  const [filters, setFilters] = useState<{ 
+    timeline: string; 
+    stages: string[]; 
+    benefits: string[]; 
+    sector: string; 
+    region: string;
+    target: string;
+    scale: string;
+    operator: string;
+  }>({ 
+    timeline: '전체', 
+    stages: [], 
+    benefits: [], 
+    sector: '전체', 
+    region: '전체',
+    target: '전체',
+    scale: '전체',
+    operator: '전체'
+  });
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'closing' | 'new' | 'interest'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const POSTS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -139,11 +163,22 @@ export default function Home() {
         timeline: t || '전체',
         stages: s ? s.split(',') : [],
         benefits: b ? b.split(',') : [],
-        sector: sec || '전체'
+        sector: sec || '전체',
+        region: params.get('region') || '전체',
+        target: params.get('target') || '전체',
+        scale: params.get('scale') || '전체',
+        operator: params.get('operator') || '전체'
       });
       // 관심분야 로컬스토리지 복구
       const saved = localStorage.getItem(INTEREST_SECTORS_KEY);
-      if (saved) setInterestSectors(JSON.parse(saved));
+      if (saved) {
+        setInterestSectors(JSON.parse(saved));
+      } else {
+        // 기본 관심 분야 설정 (데이터가 없을 경우를 대비)
+        const defaultInterests = ['농업', '기술/IT', '소상공인'];
+        setInterestSectors(defaultInterests);
+        localStorage.setItem(INTEREST_SECTORS_KEY, JSON.stringify(defaultInterests));
+      }
     }
   }, []);
 
@@ -158,6 +193,14 @@ export default function Home() {
       else params.set('benefits', newFilters.benefits.join(','));
       if (newFilters.sector === '전체') params.delete('sector');
       else params.set('sector', newFilters.sector);
+      if (newFilters.region === '전체') params.delete('region');
+      else params.set('region', newFilters.region);
+      if (newFilters.target === '전체') params.delete('target');
+      else params.set('target', newFilters.target);
+      if (newFilters.scale === '전체') params.delete('scale');
+      else params.set('scale', newFilters.scale);
+      if (newFilters.operator === '전체') params.delete('operator');
+      else params.set('operator', newFilters.operator);
       
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.pushState(null, '', newUrl);
@@ -242,10 +285,10 @@ export default function Home() {
     : filteredItems;
 
   // Autonomous Feed D-Day 스마트 정렬
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
   
-  const allInfinityList = [...baseInfinityList].sort((a, b) => {
+  let allInfinityList = [...baseInfinityList].sort((a, b) => {
     const getRank = (item: any) => {
       // 0순위: 사용자 설정 관심분야 매칭 (가장 최상단)
       const isInterest = interestSectors.some(sec => item.summary?.includes(`[${sec}]`));
@@ -254,7 +297,7 @@ export default function Home() {
         const dDate = new Date(item.deadline_date);
         if (!isNaN(dDate.getTime())) {
           dDate.setHours(0,0,0,0);
-          const diffDays = Math.ceil((dDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          const diffDays = Math.ceil((dDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
           // 마감 임박 공고 (관심분야면 group 0, 아니면 group 1)
           if (diffDays >= 0) return { group: isInterest ? 0 : 1, val: diffDays };
           // 마감 완료 공고 (가장 마지막)
@@ -269,7 +312,31 @@ export default function Home() {
     if (rankA.group !== rankB.group) return rankA.group - rankB.group;
     return rankA.val - rankB.val;
   });
+
+  // 통계 계산
+  const stats = {
+    total: allInfinityList.length,
+    closing: allInfinityList.filter(i => {
+      if (!i.deadline_date) return false;
+      const d = new Date(i.deadline_date);
+      d.setHours(0,0,0,0);
+      const diff = Math.ceil((d.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+      return diff >= 0 && diff <= 3;
+    }).length,
+    newToday: allInfinityList.filter(i => {
+      const d = new Date(i.created_at);
+      return d.toDateString() === new Date().toDateString();
+    }).length,
+    interest: allInfinityList.filter(i => interestSectors.some(sec => i.summary?.includes(`[${sec}]`))).length
+  };
   
+  if (filters.sector !== '전체') {
+    allInfinityList = allInfinityList.filter(item => {
+      const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+      return text.includes(filters.sector.toLowerCase());
+    });
+  }
+
   const searchedList = searchQuery.trim() 
     ? allInfinityList.filter(item => item.title.toLowerCase().includes(searchQuery.trim().toLowerCase())) 
     : allInfinityList;
@@ -303,6 +370,41 @@ export default function Home() {
     });
   }
 
+  if (filters.region !== '전체') {
+    finalFilteredList = finalFilteredList.filter(item => {
+      const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+      return text.includes(filters.region.toLowerCase());
+    });
+  }
+
+  if (filters.target !== '전체') {
+    finalFilteredList = finalFilteredList.filter(item => {
+      const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+      if (filters.target === '개인') return text.includes('개인') || text.includes('소상공인') || text.includes('예비');
+      if (filters.target === '법인') return text.includes('법인') || text.includes('중소기업') || text.includes('벤처');
+      return true;
+    });
+  }
+
+  if (filters.scale !== '전체') {
+    finalFilteredList = finalFilteredList.filter(item => {
+      const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+      if (filters.scale === '~1천만원') return text.includes('1천') || text.includes('1000') || text.includes('백만원');
+      if (filters.scale === '~5천만원') return text.includes('5천') || text.includes('5000') || text.includes('천만원');
+      if (filters.scale === '1억원 이상') return text.includes('억') || text.includes('1억') || text.includes('자산');
+      return true;
+    });
+  }
+
+  if (filters.operator !== '전체') {
+    finalFilteredList = finalFilteredList.filter(item => {
+      const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
+      if (filters.operator === '정부/지자체') return text.includes('정부') || text.includes('시청') || text.includes('도청') || text.includes('진흥원') || text.includes('기보') || text.includes('신보');
+      if (filters.operator === '민간/기타') return text.includes('민간') || text.includes('재단') || text.includes('협회') || text.includes('은행') || text.includes('센터');
+      return true;
+    });
+  }
+
   if (filters.stages.length > 0) {
     finalFilteredList = finalFilteredList.filter(item => {
       const text = (item.title + ' ' + (item.summary || '')).toLowerCase();
@@ -319,6 +421,38 @@ export default function Home() {
         FILTER_KEYWORDS.benefits[benefit]?.some(kw => text.includes(kw.toLowerCase()))
       );
     });
+  }
+
+  // 탭 필터링 적용 (중복 제로: 상호 배타적 버킷 방식)
+  if (activeTab === 'new') {
+    // 1. NEW TODAY: 오직 오늘 등록된 최신 데이터만
+    finalFilteredList = searchedList
+      .filter(i => {
+        const d = new Date(i.created_at);
+        return d.toDateString() === new Date().toDateString();
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } else if (activeTab === 'closing') {
+    // 2. CLOSING SOON: 오늘 등록된 기사는 제외하고, 마감이 3일 이내인 기사만
+    finalFilteredList = searchedList
+      .filter(i => {
+        const isNewToday = new Date(i.created_at).toDateString() === new Date().toDateString();
+        if (isNewToday || !i.deadline_date) return false;
+        
+        const d = new Date(i.deadline_date);
+        d.setHours(0,0,0,0);
+        const diff = Math.ceil((d.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+        return diff >= 0 && diff <= 3;
+      })
+      .sort((a, b) => new Date(a.deadline_date!).getTime() - new Date(b.deadline_date!).getTime());
+  } else if (activeTab === 'interest') {
+    // 3. PERSONALIZED: 관심 분야 (중복 허용 가능하지만 일단 관심사 위주로만)
+    finalFilteredList = searchedList
+      .filter(i => interestSectors.some(sec => (i.title + i.summary).includes(sec)))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } else {
+    // 4. ALL UPDATES: 전체 데이터베이스 (최신 등록순 - 중점적인 필터링 공간)
+    finalFilteredList = searchedList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
   // 페이지네이션 계산
@@ -457,297 +591,337 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 섹션 3: 전체 리스트 (네이버 뉴스 스타일) */}
-        <section id="feed-start">
-          <div className="text-center mb-10">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-6 gap-4 border-b border-slate-900 pb-3">
-              <h3 className="font-black text-xl text-slate-900 tracking-wider mb-2 md:mb-0">실시간 지원사업 공고</h3>
-              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-                <div className="relative w-full md:w-72">
-                  <input
-                    type="text"
-                    placeholder="기사 제목 검색..."
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className="w-full bg-white border border-slate-200 rounded-full px-4 py-2.5 text-xs md:text-sm font-bold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30 text-xs">🔍</div>
-                </div>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-xs md:text-sm font-bold transition-all border ${showFilters || filters.timeline !== '전체' || filters.stages.length > 0 || filters.benefits.length > 0 ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 shadow-sm'}`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                  <span>필터 옵션</span>
-                </button>
+        {/* 섹션 3: 프리미엄 인텔리전스 대시보드 */}
+        <section id="feed-start" className="pt-24 border-t-4 border-slate-900">
+          <div className="flex flex-col gap-2 mb-16">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_12px_rgba(220,38,38,0.6)]" />
+              <span className="text-[12px] font-black text-red-600 uppercase tracking-[0.5em]">Live intelligence Pulse</span>
+            </div>
+            <h3 className="text-5xl font-black text-slate-900 tracking-tighter leading-none mb-2">실시간 비즈니스 데이터 센터</h3>
+            <p className="text-slate-500 font-bold text-base max-w-2xl">기틀 AI가 수집한 미가공 데이터를 정제하여 핵심 인사이트를 도출합니다. 사업 성장을 위한 데이터 기반 의사결정을 시작하세요.</p>
+          </div>
+
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left Column: Mosaic Intelligence Grid */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 bg-slate-900 w-fit p-1 rounded-xl mb-10 shadow-2xl">
+                {[
+                  { id: 'all', label: 'ALL UPDATES' },
+                  { id: 'new', label: 'NEW TODAY' },
+                  { id: 'closing', label: 'CLOSING SOON' },
+                  { id: 'interest', label: 'FOR YOU' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as any); setCurrentPage(1); }}
+                    className={`px-6 py-2.5 rounded-lg text-[10px] font-black transition-all tracking-widest ${activeTab === tab.id ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
+
+              {finalFilteredList.length === 0 ? (
+                <div className="py-48 text-center bg-white border-2 border-slate-100 rounded-[3rem] shadow-sm">
+                   <p className="text-slate-300 font-black uppercase tracking-[0.3em] text-sm">Waiting for incoming data stream...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border-2 border-slate-200 rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-900/10">
+                  {infinityList.map((item, idx) => {
+                    const { title, institution } = parseTitle(item.title);
+                    const isNew = new Date(item.created_at).toDateString() === new Date().toDateString();
+                    const isInterest = interestSectors.some(sec => item.summary?.includes(`[${sec}]`));
+                    const isSpotlight = idx === 0 && currentPage === 1;
+
+                    return (
+                      <LinkNext 
+                        key={item.id} 
+                        href={`/article/${item.id}`}
+                        className={`group bg-white p-12 transition-all hover:bg-slate-50 relative flex flex-col min-h-[360px] ${isSpotlight ? 'md:col-span-2' : ''}`}
+                      >
+                        <div className="flex justify-between items-center mb-8">
+                           <DDayBadge deadline={item.deadline_date} category={item.category} className="scale-110" />
+                           <div className="flex gap-2">
+                             {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 border border-amber-100 uppercase tracking-tighter">Recommended</span>}
+                             {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">New Entry</span>}
+                           </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-6 flex-1">
+                          <div className="flex items-center gap-3">
+                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{item.category}</span>
+                             <span className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
+                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">{institution}</span>
+                          </div>
+                          
+                          <h4 className={`${isSpotlight ? 'text-4xl' : 'text-2xl'} font-black text-slate-900 tracking-tighter leading-[1.15] group-hover:text-blue-700 transition-colors`}>
+                            {title}
+                          </h4>
+                          
+                          <p className="text-[14px] text-slate-500 font-bold line-clamp-2 leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity">
+                            {item.summary?.replace(/^\[.*?\]\s*/, '')}
+                          </p>
+                        </div>
+
+                        <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
+                           <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Proprietary Analysis Complete</span>
+                           <span className="text-slate-900 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-black text-sm">ANALYSIS REPORT →</span>
+                        </div>
+                      </LinkNext>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Advanced Pagination UI */}
+              {totalPages > 1 && (
+                <div className="mt-16 flex justify-center items-center gap-4">
+                  <button 
+                    onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
+                    disabled={currentPage === 1}
+                    className="w-12 h-12 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all disabled:opacity-0"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => { setCurrentPage(pageNum); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
+                        className={`w-12 h-12 rounded-full text-xs font-black transition-all ${currentPage === pageNum ? 'bg-slate-900 text-white shadow-2xl scale-110' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 80 : 0, behavior: 'smooth' }); }}
+                    disabled={currentPage === totalPages}
+                    className="w-12 h-12 rounded-full border-2 border-slate-100 flex items-center justify-center text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all disabled:opacity-0"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* 필터 패널 */}
-            {showFilters && (
-              <div className="w-full bg-white border border-slate-200 rounded-3xl p-10 mb-10 shadow-xl text-left animate-in fade-in slide-in-from-top-4 duration-500">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-                  {/* 분야 (Sector) */}
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-slate-900"></span>분야별 필터 (Sector)</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_SECTORS.map(sec => (
-                        <button
-                          key={sec}
-                          onClick={() => {
-                            const next = { ...filters, sector: sec };
-                            setFilters(next);
-                            updateURLFilters(next);
-                            setCurrentPage(1);
-                          }}
-                          className={`px-3 py-2 rounded-xl text-[11px] font-bold transition-all border ${filters.sector === sec ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                        >
-                          {sec}
-                        </button>
-                      ))}
-                    </div>
+            {/* Right Column: Terminal Sidebar */}
+            <aside className="lg:w-80 shrink-0 relative">
+               <div className="bg-white border-2 border-slate-900 rounded-[2.5rem] sticky top-28 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col max-h-[80vh]">
+                  <div className="p-7 border-b-2 border-slate-900 bg-slate-50 flex items-center justify-between shrink-0">
+                     <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-900">데이터 필터 센터</h5>
+                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                   </div>
-                  {/* 시기 */}
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>시기 (Timeline)</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_TIMELINES.map(t => (
-                        <button
-                          key={t}
-                          onClick={() => handleTimelineChange(t)}
-                          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${filters.timeline === t ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* 대상 */}
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>대상 (Stage)</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_STAGES.map(s => {
-                        const isSelected = filters.stages.includes(s);
-                        return (
-                          <button
-                            key={s}
-                            onClick={() => handleFilterToggle('stages', s)}
-                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${isSelected ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-200' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                          >
-                            {s}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {/* 유형 */}
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 uppercase mb-4 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>유형 (Benefit)</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_BENEFITS.map(b => {
-                        const isSelected = filters.benefits.includes(b);
-                        return (
-                          <button
-                            key={b}
-                            onClick={() => handleFilterToggle('benefits', b)}
-                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${isSelected ? 'bg-teal-600 border-teal-600 text-white shadow-md shadow-teal-200' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}
-                          >
-                            {b}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                  
+                  {/* Scrollable Content Area */}
+                  <div className="p-7 overflow-y-auto custom-scrollbar flex-1 space-y-10 group/scroll">
+                     {/* 1. Timeline */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 타임라인
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_TIMELINES.map(t => (
+                              <button 
+                                key={t} 
+                                onClick={() => handleTimelineChange(t)}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.timeline === t ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {t} {filters.timeline === t && '◦'}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
 
-                <div className="mt-12 pt-10 border-t border-slate-100">
-                   <div className="flex items-center gap-3 mb-6">
-                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Personalized Interest Center</span>
-                  </div>
-                  <div className="flex flex-col md:flex-row md:items-center gap-8">
-                    <div className="flex-1">
-                      <h5 className="text-[17px] font-black text-slate-900 tracking-tight mb-2">당신의 관심 분야를 알려주세요. ★</h5>
-                      <p className="text-[12px] text-slate-500 font-bold tracking-tight italic">설정하신 분야의 공고와 뉴스가 최상단에 우선 배치됩니다.</p>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      {ALL_SECTORS.filter(s => s !== '전체').map(sec => (
-                        <button
-                          key={sec}
-                          onClick={() => toggleInterestSector(sec)}
-                          className={`px-6 py-3 rounded-2xl text-[13px] font-black transition-all border flex items-center gap-2 ${
-                            interestSectors.includes(sec)
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-100 scale-105'
-                              : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
-                          }`}
-                        >
-                          {sec}
-                          {interestSectors.includes(sec) && <span className="text-yellow-300">★</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                     {/* 2. Target (개인/법인) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원대상
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_TARGETS.map(tar => (
+                              <button 
+                                key={tar} 
+                                onClick={() => { const next = { ...filters, target: tar }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.target === tar ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {tar}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
 
-            {/* 필터 칩 영역 */}
-            {(filters.timeline !== '전체' || filters.stages.length > 0 || filters.benefits.length > 0) && (
-              <div className="flex flex-wrap gap-2 mb-6 items-center justify-start">
-                <span className="text-[11px] font-black text-slate-500 mr-2 tracking-wide">적용된 필터:</span>
-                {filters.timeline !== '전체' && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-bold">
-                    {filters.timeline}
-                    <button onClick={() => removeFilter('timeline')} className="hover:text-blue-900 rounded-full focus:outline-none"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                  </span>
-                )}
-                {filters.stages.map(s => (
-                  <span key={s} className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-[11px] font-bold">
-                    {s}
-                    <button onClick={() => removeFilter('stages', s)} className="hover:text-purple-900 rounded-full focus:outline-none"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                  </span>
-                ))}
-                {filters.benefits.map(b => (
-                  <span key={b} className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full text-[11px] font-bold">
-                    {b}
-                    <button onClick={() => removeFilter('benefits', b)} className="hover:text-teal-900 rounded-full focus:outline-none"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                  </span>
-                ))}
-                
-                {filters.sector !== '전체' && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-white rounded-full text-[11px] font-bold">
-                    {filters.sector}
-                    <button onClick={() => { const next = { ...filters, sector: '전체' }; setFilters(next); updateURLFilters(next); }} className="hover:text-slate-300 rounded-full focus:outline-none"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                  </span>
-                )}
-                
-                <button 
-                  onClick={() => { setFilters({ timeline: '전체', stages: [], benefits: [], sector: '전체' }); updateURLFilters({ timeline: '전체', stages: [], benefits: [], sector: '전체' }); setCurrentPage(1); }} 
-                  className="text-[11px] font-bold text-slate-400 hover:text-slate-800 underline underline-offset-2 ml-2"
-                >
-                  초기화
-                </button>
-              </div>
-            )}
+                     {/* 3. Scale (지원규모) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원규모
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_SCALES.map(s => (
+                              <button 
+                                key={s} 
+                                onClick={() => { const next = { ...filters, scale: s }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.scale === s ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {s} {filters.scale === s && '◦'}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
 
-          <div className="h-0.5 bg-slate-100 w-full mb-12" />
-        </div>
-        
-        {finalFilteredList.length === 0 ? (
-          <div className="py-20 text-center bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
-            <span className="text-5xl block mb-4 opacity-20">🍃</span>
-            <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">검색 결과가 없습니다.</p>
+                     {/* 4. Operator (운영주체) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 운영주체
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_OPERATORS.map(op => (
+                              <button 
+                                key={op} 
+                                onClick={() => { const next = { ...filters, operator: op }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.operator === op ? 'bg-indigo-600 text-white border-indigo-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {op}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 5. Scale / Stage */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 기업성장단계
+                        </p>
+                        <div className="flex flex-col gap-2.5">
+                           {ALL_STAGES.map(s => (
+                              <button 
+                                key={s} 
+                                onClick={() => handleFilterToggle('stages', s)}
+                                className={`flex items-center gap-2 text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.stages.includes(s) ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                <div className={`w-2.5 h-2.5 rounded-sm border ${filters.stages.includes(s) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`} />
+                                {s}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 6. Benefit Types */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지원혜택유형
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_BENEFITS.map(b => (
+                              <button 
+                                key={b} 
+                                onClick={() => handleFilterToggle('benefits', b)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.benefits.includes(b) ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {b}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 7. Sector focus */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 산업분야
+                        </p>
+                        <div className="grid grid-cols-1 gap-2.5">
+                           {ALL_SECTORS.map(sec => (
+                              <button 
+                                key={sec} 
+                                onClick={() => { const next = { ...filters, sector: sec }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`text-left text-[13px] font-bold transition-all hover:translate-x-1 ${filters.sector === sec ? 'text-blue-700 font-black' : 'text-slate-500 hover:text-slate-900'}`}
+                              >
+                                {sec}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 8. Region */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 지역구분
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {ALL_REGIONS.map(reg => (
+                              <button 
+                                key={reg} 
+                                onClick={() => { const next = { ...filters, region: reg }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.region === reg ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {reg}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     {/* 9. Scan Intelligence */}
+                     <div className="pt-8 border-t border-slate-100">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 키워드 검색
+                        </p>
+                        <div className="relative">
+                           <input
+                             type="text"
+                             placeholder="키워드 입력..."
+                             value={searchQuery}
+                             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold placeholder:text-slate-300 focus:border-slate-900 transition-all focus:outline-none"
+                           />
+                        </div>
+                     </div>
+                  </div>
+                  
+                  {/* Static Footer Button */}
+                  <div className="p-7 bg-white border-t-2 border-slate-900 shrink-0">
+                     <button 
+                        onClick={() => { 
+                          const reset = { timeline: '전체', stages: [], benefits: [], sector: '전체', region: '전체', target: '전체', scale: '전체', operator: '전체' };
+                          setFilters(reset); setSearchQuery(''); updateURLFilters(reset); 
+                        }}
+                        className="w-full bg-slate-900 text-white py-4 rounded-xl text-[10px] font-black tracking-[0.2em] uppercase hover:bg-blue-700 transition-all shadow-lg active:scale-95"
+                      >
+                        필터 초기화
+                      </button>
+                  </div>
+               </div>
+            </aside>
           </div>
-        ) : (
-          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-50">
-            {infinityList.map((item, idx) => {
-              const { title, institution } = parseTitle(item.title);
-              return (
-                <LinkNext 
-                  key={item.id} 
-                  href={`/article/${item.id}`} 
-                  className="p-8 hover:bg-slate-50 flex items-center justify-between group transition-colors min-w-0 animate-fade-in"
-                  style={{ animationDelay: `${idx * 0.05}s` }}
-                >
-                  <div className="flex items-center gap-8 min-w-0 flex-1">
-                    <div className="hidden sm:block shrink-0 w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
-                      <img 
-                        src={item.image_url || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=200&auto=format&fit=crop'} 
-                        alt="Thumbnail" 
-                        className="w-full h-full object-cover"
-                        onError={(e: any) => { e.target.src = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=200&auto=format&fit=crop'; }}
-                      />
-                    </div>
-                    <DDayBadge deadline={item.deadline_date} category={item.category} className="shrink-0 w-16 text-center py-1.5 !text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm" />
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                      <h4 className="text-[18px] font-black text-slate-800 group-hover:text-blue-600 transition-colors truncate tracking-wide">
-                        {title}
-                        {item.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
-                          <SectorBadge sector={item.summary.match(/^\[(.*?)\]/)[1]} />
-                        )}
-                      </h4>
-                      <p className="text-[13px] text-slate-500 mt-2 font-medium flex items-center gap-3">
-                          <span className={`font-bold ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-600' : item.category === '창업 뉴스' ? 'text-red-600' : item.category === '기업/마켓 뉴스' ? 'text-teal-600' : 'text-blue-600'}`}>
-                            {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'TECH' : item.category === '창업 뉴스' ? '창업' : item.category === '기업/마켓 뉴스' ? '마켓' : item.category}
-                          </span>
-                         <span className="opacity-20 text-slate-900">|</span>
-                         <span>주관: {institution}</span>
-                         <span className="opacity-20 text-slate-900">|</span>
-                         <span>{item.deadline_date ? `마감: ${new Date(item.deadline_date).toLocaleDateString('ko-KR')}` : (item.category === '정부지원공고' || item.category?.toLowerCase() === 'strategy' ? '마감: 상시 접수' : '마감: NEWS')}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="ml-4 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                    <span className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-xl shadow-blue-600/20">→</span>
-                  </div>
-                </LinkNext>
-              );
-            })}
-          </div>
-          )}
-
-          {/* Pagination UI */}
-          {totalPages > 1 && (
-            <div className="mt-12 flex justify-center items-center gap-2">
-              <button 
-                onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 100 : 0, behavior: 'smooth' }); }}
-                disabled={currentPage === 1}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-blue-600 hover:text-blue-600 disabled:opacity-30 disabled:hover:border-slate-200 disabled:hover:text-slate-400 transition-all font-bold"
-              >
-                &lsaquo;
-              </button>
-              
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => { setCurrentPage(pageNum); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 100 : 0, behavior: 'smooth' }); }}
-                  className={`w-10 h-10 rounded-xl font-bold transition-all ${
-                    currentPage === pageNum 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-                    : 'text-slate-400 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              ))}
-
-              <button 
-                onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); window.scrollTo({ top: document.getElementById('feed-start')?.offsetTop ? document.getElementById('feed-start')!.offsetTop - 100 : 0, behavior: 'smooth' }); }}
-                disabled={currentPage === totalPages}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-blue-600 hover:text-blue-600 disabled:opacity-30 disabled:hover:border-slate-200 disabled:hover:text-slate-400 transition-all font-bold"
-              >
-                &rsaquo;
-              </button>
-            </div>
-          )}
         </section>
-
       </main>
 
-      <footer className="bg-white py-16 mt-16 border-t border-slate-100 text-center">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
-          <div className="flex items-center gap-2">
-            <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
-            <div className="w-2 h-2 rounded-full bg-blue-600" />
-          </div>
-          <p className="text-slate-500 text-xs font-bold tracking-widest max-w-md mx-auto leading-relaxed">
-            기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.
+      <footer className="bg-white py-24 mt-24 border-t-2 border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-10">
+          <LinkNext href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <span className="text-4xl font-black text-slate-900 tracking-tighter">기틀</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-700" />
+          </LinkNext>
+          <p className="text-slate-500 text-sm font-bold tracking-tight max-w-xl mx-auto leading-relaxed">
+            기틀 AI 미디어는 데이터 기반의 의사결정을 돕는 비즈니스 인텔리전스 플랫폼입니다. <br/>
+            초기 창업부터 글로벌 진출까지, 당신의 성장을 위한 전략적 파트너가 되겠습니다.
           </p>
-          <div className="flex gap-6">
-            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Intelligence</span>
-            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Strategy</span>
-            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Growth</span>
+          <div className="flex gap-8">
+            {['Intelligence', 'Strategy', 'Growth', 'Data'].map(word => (
+              <span key={word} className="text-slate-300 text-[11px] font-black tracking-[0.3em] uppercase">{word}</span>
+            ))}
           </div>
-          <div className="h-px w-16 bg-slate-100" />
-          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em]">© 2026 Giteul AI Media Portal.</p>
+          <div className="h-px w-24 bg-slate-200" />
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.4em]">© 2026 Giteul AI Media Portal. All rights reserved.</p>
         </div>
       </footer>
 
-      {/* Floating Scroll to Top */}
+      {/* Floating Action Button */}
       <button 
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-10 right-10 w-14 h-14 bg-white shadow-2xl rounded-full border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group z-40"
+        className="fixed bottom-12 right-12 w-16 h-16 bg-slate-900 text-white shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-full flex items-center justify-center hover:bg-blue-700 transition-all group z-50 border-4 border-white"
       >
-        <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+        <svg className="w-7 h-7 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 15l7-7 7 7" /></svg>
       </button>
     </div>
   );

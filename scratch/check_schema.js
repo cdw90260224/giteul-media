@@ -1,20 +1,34 @@
+
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
+const path = require('path');
 
-const env = fs.readFileSync('.env.local', 'utf8');
-const getEnv = (key) => env.match(new RegExp(`${key}=(.*)`))?.[1]?.trim();
-
-const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'));
-
-async function check() {
-    const { data, error } = await supabase.from('posts').select('*').limit(1);
-    if (error) {
-        console.error('Supabase Error:', error);
-    } else if (data && data.length > 0) {
-        console.log('Columns:', Object.keys(data[0]));
-    } else {
-        console.log('No data found in posts table.');
-    }
+function getEnv() {
+    const envPath = path.join(process.cwd(), '.env.local');
+    if (!fs.existsSync(envPath)) return {};
+    const content = fs.readFileSync(envPath, 'utf8');
+    const env = {};
+    content.split('\n').filter(l => l.includes('=')).forEach(line => {
+        const [key, ...rest] = line.split('=');
+        env[key.trim()] = rest.join('=').trim();
+    });
+    return env;
 }
 
-check();
+async function run() {
+    const env = getEnv();
+    const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data, error } = await supabase.from('posts').select('*').limit(1);
+    
+    if (error) {
+        console.error(error);
+        return;
+    }
+    console.log('--- Table Columns ---');
+    if (data.length > 0) {
+        console.log(Object.keys(data[0]));
+    } else {
+        console.log('No data found to check columns.');
+    }
+}
+run();

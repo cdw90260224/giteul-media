@@ -921,7 +921,7 @@ export default function Home() {
                   <div className="p-7 bg-white border-t-2 border-slate-900 shrink-0">
                      <button 
                         onClick={() => { 
-                          const reset = { timeline: '전체', stages: [], benefits: [], sector: '전체', region: '전체', target: '전체', scale: '전체', operator: '전체' };
+                          const reset = { timeline: '전체', stages: [], benefits: [], sector: '전체', region: '전체', target: '전체', scale: '전체', operator: '전체', articleType: '전체' as const };
                           setFilters(reset); setSearchQuery(''); updateURLFilters(reset); 
                         }}
                         className="w-full bg-slate-900 text-white py-4 rounded-xl text-[10px] font-black tracking-[0.2em] uppercase hover:bg-blue-700 transition-all shadow-lg active:scale-95"

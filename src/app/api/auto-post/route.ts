@@ -103,14 +103,21 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
             JSON 구조: { "title": "...", "summary": "...", "category": "정부지원공고", "content": "...", "notice_url": "...", "deadline": "YYYY-MM-DD 또는 상시 접수", "sector": "${sector}", "image_keyword": "업무와 관련된 대표 영문 키워드 1개 (예: business, agriculture, technology, store)" }
 
-            주의: 제목(title)에는 절대로 '[전략]' 단어나 유사한 태그를 포함하지 마세요. 
-            내용(content)은 마크다운으로 작성하되, 마지막에 "### ✒️ 기자의 시선: 전략적 분석" 섹션을 반드시 포함하고 인용구(> )와 함께 다음 내용을 담으세요:
-            1. [왜 주목해야 하는가?]: 이 공고의 파격적인 혜택이나 전략적 가치 분석
-            2. [당첨 확률을 높이는 핵심 포인트]: 사업계획서나 발표 시 강조해야 할 유정(Winning Edge)
-            3. [이런 업체는 무조건 지원하세요]: 가장 유리한 기업 프로필 제안
+            --- 마크다운 작성(content) 및 텍스트 규정 ---
+            1. 입력 제목에 섞여있는 지저분한 메타데이터(예: "사업화", "접수중", 중복된 텍스트, 기관명 등)를 절대 그대로 노출하거나 제목/목차로 사용하지 마세요. 깔끔하게 정제하세요.
+            2. 불필요한 **두꺼운 글씨(Bold)** 남용을 완전히 금지합니다.
+            3. 본문은 장황한 마크다운 기호 남용 없이, 다음 3가지 핵심 주제로만 깔끔하게 리스트 형태로 전개하세요:
+               - 지원 대상 및 자격 요건
+               - 핵심 혜택 및 지원 규모
+               - 주요 일정 및 신청 방법
+            4. 절대 마크다운 표(Table, | | |)를 생성하지 마세요. 테이블 모양 대신 가독성 높은 텍스트 나열형 리스트(Bullet points)를 사용하세요.
+            5. 마지막에는 "### ✒️ 기자의 시선: 전략적 분석" 섹션을 반드시 포함하고, 인용구(> ) 포맷 안에 다음 내용을 담으세요:
+               - [왜 주목해야 하는가?]: 이 공고의 파격적인 혜택이나 전략적 가치 분석
+               - [당첨 확률을 높이는 핵심 포인트]: 사업계획서/발표 시 강조해야 할 유정(Winning Edge)
+               - [이런 업체는 무조건 지원하세요]: 가장 유리한 기업 프로필 제안
             
-            이미지 키워드는 해당 공고의 성격에 따라 'startup', 'finance', 'factory', 'global' 중 가장 적합한 것을 선택하거나 새로 생성하세요.
-            입력 제목: ${item.title}
+            이미지 키워드는 공고 성격에 따라 'startup', 'finance', 'factory', 'global' 중 하나를 선택하세요.
+            입력 원천 데이터: ${item.title}
             공고URL: ${item.url}`;
 
             const aiResponse = await callGeminiSafe(prompt);
@@ -253,22 +260,15 @@ export async function GET(request: Request) {
   after(async () => {
     try {
       const today = new Date();
-      const kstDay = new Date(today.getTime() + (9 * 60 * 60 * 1000)).getUTCDate();
       
       console.log(`[Background Cron] Starting at ${new Date().toISOString()}`);
 
-      // 1. 정부지원공고 (4개 필지) & 2. 뉴스 (1개 필지) 병렬 시작
-      const newsCategory = (kstDay % 2 === 0) ? 'tech' : '기업/마켓 뉴스';
-      
-      // 정부지원공고는 제한 해제(-1)하여 당일 전수 수집
+      // 1. 정부지원공고 K-Startup 당일 전체 수집 전용 가동 (-1)
       const { sendNotification, formatBatchResult } = await import('@/lib/notifier');
       
-      const [govResults, newsResults] = await Promise.all([
-        publishByCategory('정부지원공고', -1),
-        publishByCategory(newsCategory, 1)
-      ]);
+      const govResults = await publishByCategory('정부지원공고', -1);
 
-      const allResults = [...govResults, ...newsResults];
+      const allResults = [...govResults];
       const summary = formatBatchResult(allResults);
       await sendNotification(summary);
 

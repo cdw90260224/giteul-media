@@ -31,7 +31,7 @@ const FILTER_KEYWORDS: Record<string, Record<string, string[]>> = {
     '수출·마케팅': ['수출', '마케팅', '판로', '전시회', '홍보', '글로벌', '해외'],
   }
 };
-const ALL_TIMELINES = ['전체', '오늘 등록', '마감 임박(D-3)', '상시 모집'];
+const ALL_TIMELINES = ['전체', '마감 임박(D-3)', '30일 이내(D-30)', '상시 모집'];
 const ALL_STAGES = ['예비창업', '초기(3년 미만)', '도약(7년 미만)', '성장(7년 이상)'];
 const ALL_BENEFITS = ['자금지원', 'R&D', '공간지원', '교육·멘토링', '수출·마케팅'];
 const ALL_SECTORS = ['전체', '농업', '기술/IT', '소상공인'];
@@ -120,7 +120,7 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
 export default function Home() {
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string>('전체');
+  // removed activeCategory
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<{ 
@@ -132,6 +132,7 @@ export default function Home() {
     target: string;
     scale: string;
     operator: string;
+    articleType: string;
   }>({ 
     timeline: '전체', 
     stages: [], 
@@ -140,7 +141,8 @@ export default function Home() {
     region: '전체',
     target: '전체',
     scale: '전체',
-    operator: '전체'
+    operator: '전체',
+    articleType: '전체'
   });
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -152,10 +154,7 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const cat = params.get('category');
-      if (cat && ['전체', 'strategy', 'news'].includes(cat)) {
-        setActiveCategory(cat);
-      }
+
       const t = params.get('timeline');
       const s = params.get('stages');
       const b = params.get('benefits');
@@ -168,7 +167,8 @@ export default function Home() {
         region: params.get('region') || '전체',
         target: params.get('target') || '전체',
         scale: params.get('scale') || '전체',
-        operator: params.get('operator') || '전체'
+        operator: params.get('operator') || '전체',
+        articleType: params.get('articleType') || '전체'
       });
       // 관심분야 로컬스토리지 복구
       const saved = localStorage.getItem(INTEREST_SECTORS_KEY);
@@ -202,6 +202,8 @@ export default function Home() {
       else params.set('scale', newFilters.scale);
       if (newFilters.operator === '전체') params.delete('operator');
       else params.set('operator', newFilters.operator);
+      if (newFilters.articleType === '전체') params.delete('articleType');
+      else params.set('articleType', newFilters.articleType);
       
       const newUrl = `${window.location.pathname}?${params.toString()}`;
       window.history.pushState(null, '', newUrl);
@@ -209,42 +211,31 @@ export default function Home() {
   };
 
   const handleFilterToggle = (type: 'stages' | 'benefits', value: string) => {
-    setFilters(prev => {
-      const list = prev[type];
-      const newList = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
-      const newFilters = { ...prev, [type]: newList };
-      updateURLFilters(newFilters);
-      return newFilters;
-    });
+    const list = filters[type];
+    const newList = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
+    const newFilters = { ...filters, [type]: newList };
+    setFilters(newFilters);
+    updateURLFilters(newFilters);
     setCurrentPage(1);
   };
 
   const handleTimelineChange = (val: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev, timeline: val };
-      updateURLFilters(newFilters);
-      return newFilters;
-    });
+    const newFilters = { ...filters, timeline: val };
+    setFilters(newFilters);
+    updateURLFilters(newFilters);
     setCurrentPage(1);
   };
   
   const removeFilter = (type: 'timeline' | 'stages' | 'benefits', value?: string) => {
-    setFilters(prev => {
-      const newFilters = { ...prev };
-      if (type === 'timeline') newFilters.timeline = '전체';
-      else if (value) newFilters[type] = (newFilters[type] as string[]).filter(v => v !== value);
-      updateURLFilters(newFilters);
-      return newFilters;
-    });
+    const newFilters = { ...filters };
+    if (type === 'timeline') newFilters.timeline = '전체';
+    else if (value) newFilters[type] = (newFilters[type] as string[]).filter(v => v !== value);
+    setFilters(newFilters);
+    updateURLFilters(newFilters);
     setCurrentPage(1);
   };
 
-  const handleCategoryClick = (cat: string) => {
-    setActiveCategory(cat);
-    setCurrentPage(1);
-    const newUrl = cat === '전체' ? window.location.pathname : `?category=${encodeURIComponent(cat)}`;
-    window.history.pushState(null, '', newUrl);
-  };
+
 
   useEffect(() => {
     async function fetchPosts() {
@@ -273,17 +264,7 @@ export default function Home() {
     .slice(0, 5);
 
   const magazineList = [...strategyPosts, ...govSupportPosts.slice(0, 2), ...techPosts.slice(0, 2)].slice(0, 4);
-  const filteredItems = activeCategory === '전체' 
-    ? newsItems 
-    : newsItems.filter(i => {
-        if (activeCategory === 'strategy') return i.category?.toLowerCase() === 'strategy' || i.category === '정부지원공고';
-        if (activeCategory === 'news') return ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech', '기업/마켓 뉴스', '창업 뉴스'].includes(i.category);
-        return i.category === activeCategory;
-      });
-    
-  const baseInfinityList = activeCategory === '전체' 
-    ? filteredItems.filter(i => ![heroMain.id, ...latestList.map(l => l.id), ...magazineList.map(m => m.id)].includes(i.id))
-    : filteredItems;
+  const baseInfinityList = newsItems.filter(i => ![heroMain.id, ...latestList.map(l => l.id), ...magazineList.map(m => m.id)].includes(i.id));
 
   // Autonomous Feed D-Day 스마트 정렬
   const todayDate = new Date();
@@ -346,13 +327,6 @@ export default function Home() {
 
   if (filters.timeline !== '전체') {
     finalFilteredList = finalFilteredList.filter(item => {
-      if (filters.timeline === '오늘 등록') {
-        const itemDate = new Date(item.created_at);
-        const today = new Date();
-        return itemDate.getFullYear() === today.getFullYear() && 
-               itemDate.getMonth() === today.getMonth() && 
-               itemDate.getDate() === today.getDate();
-      }
       if (filters.timeline === '마감 임박(D-3)') {
         if (!item.deadline_date) return false;
         const dDate = new Date(item.deadline_date);
@@ -363,10 +337,28 @@ export default function Home() {
         const diffDays = Math.ceil((dDate.getTime() - todayD.getTime()) / (1000 * 60 * 60 * 24));
         return diffDays >= 0 && diffDays <= 3;
       }
+      if (filters.timeline === '30일 이내(D-30)') {
+        if (!item.deadline_date) return false;
+        const dDate = new Date(item.deadline_date);
+        if (isNaN(dDate.getTime())) return false;
+        dDate.setHours(0,0,0,0);
+        const todayD = new Date();
+        todayD.setHours(0,0,0,0);
+        const diffDays = Math.ceil((dDate.getTime() - todayD.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 30;
+      }
       if (filters.timeline === '상시 모집') {
         const isGov = item.category === '정부지원공고' || item.category === 'Strategy' || item.category?.toLowerCase() === 'strategy';
         return (!item.deadline_date || isNaN(new Date(item.deadline_date).getTime())) && isGov;
       }
+      return true;
+    });
+  }
+
+  if (filters.articleType !== '전체') {
+    finalFilteredList = finalFilteredList.filter(item => {
+      if (filters.articleType === '지원공고') return item.category === '정부지원공고' || item.category?.toLowerCase() === 'strategy';
+      if (filters.articleType === '일반 뉴스') return ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech', '기업/마켓 뉴스', '창업 뉴스'].includes(item.category);
       return true;
     });
   }
@@ -427,7 +419,7 @@ export default function Home() {
   // 탭 필터링 적용 (중복 제로: 상호 배타적 버킷 방식)
   if (activeTab === 'new') {
     // 1. NEW TODAY: 오직 오늘 등록된 최신 데이터만
-    finalFilteredList = searchedList
+    finalFilteredList = finalFilteredList
       .filter(i => {
         const d = new Date(i.created_at);
         return d.toDateString() === new Date().toDateString();
@@ -435,7 +427,7 @@ export default function Home() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   } else if (activeTab === 'closing') {
     // 2. CLOSING SOON: 오늘 등록된 기사는 제외하고, 마감이 3일 이내인 기사만
-    finalFilteredList = searchedList
+    finalFilteredList = finalFilteredList
       .filter(i => {
         const isNewToday = new Date(i.created_at).toDateString() === new Date().toDateString();
         if (isNewToday || !i.deadline_date) return false;
@@ -448,12 +440,24 @@ export default function Home() {
       .sort((a, b) => new Date(a.deadline_date!).getTime() - new Date(b.deadline_date!).getTime());
   } else if (activeTab === 'interest') {
     // 3. PERSONALIZED: 관심 분야 (중복 허용 가능하지만 일단 관심사 위주로만)
-    finalFilteredList = searchedList
+    finalFilteredList = finalFilteredList
       .filter(i => interestSectors.some(sec => (i.title + i.summary).includes(sec)))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   } else {
-    // 4. ALL UPDATES: 전체 데이터베이스 (최신 등록순 - 중점적인 필터링 공간)
-    finalFilteredList = searchedList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // 4. ALL UPDATES: 가장 핫하고 조회수 높은 인기순 (마감된 공고 제외)
+    finalFilteredList = finalFilteredList
+      .filter(i => {
+        if (!i.deadline_date) return true; // 기한이 없거나 일반 뉴스 통과
+        const d = new Date(i.deadline_date);
+        if (isNaN(d.getTime())) return true;
+        d.setHours(0, 0, 0, 0);
+        const diff = Math.ceil((d.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+        return diff >= 0; // 오늘 이후로 기한이 남은 것만 남김 (마감된 공고 제외)
+      })
+      .sort((a, b) => {
+        const getViews = (item: any) => item.views !== undefined ? item.views : (item.id * 37) % 500;
+        return getViews(b) - getViews(a);
+      });
   }
 
   // 페이지네이션 계산
@@ -466,25 +470,10 @@ export default function Home() {
       <header className="w-full bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
           <div className="flex items-center gap-12">
-            <LinkNext href="/" onClick={() => setActiveCategory('전체')} className="group flex items-center gap-2">
+            <LinkNext href="/" className="group flex items-center gap-2">
               <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">기틀</span>
               <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
             </LinkNext>
-            <nav className="hidden lg:flex items-center gap-8">
-              {['전체', 'strategy', 'news'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => handleCategoryClick(cat)}
-                  className={`text-[15px] tracking-wider transition-all px-2 py-1 ${
-                    activeCategory === cat 
-                    ? 'text-blue-600 font-extrabold border-b-[3px] border-blue-600' 
-                    : 'text-slate-500 font-bold hover:text-slate-900 hover:translate-y-[-1px]'
-                  }`}
-                >
-                  {cat === 'strategy' ? '인사이트' : cat === 'news' ? '뉴스' : cat}
-                </button>
-              ))}
-            </nav>
           </div>
           <div className="hidden md:flex items-center gap-4">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Premium Intelligence Portal</span>
@@ -609,10 +598,10 @@ export default function Home() {
               <div className="flex items-center justify-between gap-4 mb-10">
                 <div className="flex items-center gap-2 bg-slate-900 w-fit p-1 rounded-xl shadow-2xl">
                 {[
-                  { id: 'all', label: 'ALL UPDATES' },
-                  { id: 'new', label: 'NEW TODAY' },
-                  { id: 'closing', label: 'CLOSING SOON' },
-                  { id: 'interest', label: 'FOR YOU' },
+                  { id: 'all', label: '전체 소식' },
+                  { id: 'new', label: '오늘 등록' },
+                  { id: 'closing', label: '마감 임박' },
+                  { id: 'interest', label: '관심 분야' },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -633,50 +622,72 @@ export default function Home() {
               </div>
 
               {finalFilteredList.length === 0 ? (
-                <div className="py-48 text-center bg-white border-2 border-slate-100 rounded-[3rem] shadow-sm">
-                   <p className="text-slate-300 font-black uppercase tracking-[0.3em] text-sm">Waiting for incoming data stream...</p>
+                <div className="py-48 text-center bg-white border border-slate-100 rounded-[2rem] shadow-sm">
+                   <p className="text-slate-300 font-bold uppercase tracking-[0.3em] text-sm">조건에 맞는 데이터가 없습니다</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border-2 border-slate-200 rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-900/10">
+                <div className="flex flex-col gap-[1px] bg-slate-100 border border-slate-100 rounded-[2rem] overflow-hidden shadow-lg shadow-slate-900/5">
                   {infinityList.map((item, idx) => {
                     const { title, institution } = parseTitle(item.title);
                     const isNew = new Date(item.created_at).toDateString() === new Date().toDateString();
                     const isInterest = interestSectors.some(sec => item.summary?.includes(`[${sec}]`));
-                    const isSpotlight = idx === 0 && currentPage === 1;
+                    
+                    let deadlineStr = '';
+                    if (item.deadline_date) {
+                      const d = new Date(item.deadline_date);
+                      if (!isNaN(d.getTime())) {
+                        deadlineStr = `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} 마감`;
+                      }
+                    }
 
                     return (
                       <LinkNext 
                         key={item.id} 
                         href={`/article/${item.id}`}
-                        className={`group bg-white p-12 transition-all hover:bg-slate-50 relative flex flex-col min-h-[360px] ${isSpotlight ? 'md:col-span-2' : ''}`}
+                        className="group bg-white p-6 lg:p-7 transition-all hover:bg-[#FDFDFE] relative flex flex-col md:flex-row items-start md:items-center gap-5 lg:gap-8 hover:shadow-[inset_4px_0_0_0_#2563EB]"
                       >
-                        <div className="flex justify-between items-start mb-8">
-                           <DDayBadge deadline={item.deadline_date} category={item.category} className="scale-110" />
-                           <div className="flex gap-2">
-                             {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-3 py-1 border border-amber-100 uppercase tracking-tighter">Recommended</span>}
-                             {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 border border-blue-100 uppercase tracking-widest">New Entry</span>}
+                        {/* Left: Metadata & Badges (Fixed Width) */}
+                        <div className="flex md:flex-col justify-between md:justify-start items-center md:items-start gap-4 md:gap-3.5 w-full md:w-40 shrink-0">
+                           <div className="flex md:flex-col items-center md:items-start gap-2.5 md:gap-2">
+                             <DDayBadge deadline={item.deadline_date} category={item.category} className="!text-[12px] !px-3 !py-1 origin-left shadow-sm" />
+                             {deadlineStr && <span className="text-[13px] font-black text-slate-500 tracking-wider">{deadlineStr}</span>}
+                           </div>
+                           <div className="flex flex-row flex-wrap gap-1.5 items-end md:items-start md:mt-0.5">
+                             {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 border border-amber-100 uppercase tracking-tighter rounded-sm mt-0.5">추천</span>}
+                             {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 border border-blue-100 uppercase tracking-widest rounded-sm mt-0.5">NEW</span>}
                            </div>
                         </div>
                         
-                        <div className="flex flex-col gap-6 flex-1">
-                          <div className="flex items-center gap-3">
-                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{item.category}</span>
-                             <span className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
-                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em]">{institution}</span>
+                        {/* Center: Title & Summary */}
+                        <div className="flex flex-col gap-2 flex-1 min-w-0 w-full mt-2 md:mt-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                             <span className="text-[10px] font-bold text-slate-500 tracking-wider bg-slate-50 px-1.5 py-0.5 rounded-sm">{item.category}</span>
+                             {institution && <span className="w-1 h-1 bg-slate-200 rounded-full" />}
+                             {institution && <span className="text-[11px] font-medium text-slate-400 tracking-wider truncate">{institution}</span>}
                           </div>
                           
-                          <h4 className={`${isSpotlight ? 'text-4xl' : 'text-2xl'} font-black text-slate-900 tracking-tighter leading-[1.15] group-hover:text-blue-700 transition-colors`}>
+                          <h4 className="text-xl lg:text-[22px] font-black text-slate-800 tracking-tight leading-[1.3] group-hover:text-blue-700 transition-colors line-clamp-2">
                             {title}
                           </h4>
                           
-                          <p className="text-[14px] text-slate-500 font-bold line-clamp-2 leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity">
+                          <p className="text-[14px] lg:text-[15px] text-slate-500 font-medium line-clamp-1 md:line-clamp-2 leading-relaxed opacity-90 group-hover:opacity-100 transition-opacity">
                             {item.summary?.replace(/^\[.*?\]\s*/, '')}
                           </p>
+
+                          {/* Mobile Action Text */}
+                          <div className="flex md:hidden mt-3 pt-3 border-t border-slate-50 items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-400 tracking-widest">AI 리포트 확인</span>
+                            <span className="text-blue-600 font-bold text-[12px] flex items-center gap-1">
+                              자세히 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="mt-12 pt-8 border-t border-slate-50 flex items-center justify-between">
-                           <span className="text-[11px] font-black text-slate-300 uppercase tracking-[0.3em] italic">Proprietary Analysis Complete</span>
-                           <span className="text-slate-900 opacity-0 group-hover:opacity-100 group-hover:translate-x-2 transition-all font-black text-sm">ANALYSIS REPORT →</span>
+                        {/* Right: Floating Action Button (Desktop Only) */}
+                        <div className="hidden md:flex w-20 lg:w-24 shrink-0 items-center justify-end pl-4 lg:pl-6 border-l border-slate-50">
+                           <div className="w-11 h-11 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-blue-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-all shadow-sm">
+                             <svg className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                           </div>
                         </div>
                       </LinkNext>
                     );
@@ -726,6 +737,24 @@ export default function Home() {
                   
                   {/* Scrollable Content Area */}
                   <div className="p-7 overflow-y-auto custom-scrollbar flex-1 space-y-10 group/scroll">
+                     {/* 0. 콘텐츠 유형 (Article Type) */}
+                     <div className="group">
+                        <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                           <span className="w-3 h-[1px] bg-slate-200" /> 기사 유형
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                           {['전체', '지원공고', '일반 뉴스'].map(t => (
+                              <button 
+                                key={t} 
+                                onClick={() => { const next = { ...filters, articleType: t }; setFilters(next); updateURLFilters(next); setCurrentPage(1); }}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition-all ${filters.articleType === t ? 'bg-orange-500 text-white border-orange-500' : 'text-slate-500 border-slate-200 hover:border-slate-400'}`}
+                              >
+                                {t}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
                      {/* 1. Timeline */}
                      <div className="group">
                         <p className="text-[12px] font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">

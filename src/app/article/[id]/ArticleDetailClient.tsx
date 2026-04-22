@@ -60,9 +60,18 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     }
   };
 
-  const handleLinkedInShare = () => {
+  const handleLinkedInShare = async () => {
+    const summaryText = `[기틀 핫이슈] ${post.title}\n\n"${post.summary}"\n\n자세한 인사이트 확인하기 👇\n${shareUrl}`;
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      alert('클립보드에 요약 문구가 복사되었습니다!\nLinkedIn 작성 창에 붙여넣기(Ctrl+V) 하시면 더 매력적인 공유가 가능합니다.');
+    } catch { } // 무시
     const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
     window.open(url, '_blank', 'width=600,height=600');
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleCopyAnalysis = () => {
@@ -106,37 +115,43 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     const diff = deadline.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     
-    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600', text: '실시간 마감 임박 알림' };
-    if (days < 0) return { label: '마감완료', color: 'bg-slate-400', text: '종료된 공고입니다' };
-    if (days <= 7) return { label: `D-${days}`, color: 'bg-red-600', text: '실시간 마감 임박 알림' };
-    return { label: `D-${days}`, color: 'bg-slate-100 text-slate-600 border border-slate-200', text: '안정적인 모집 중' };
+    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
+    if (days < 0) return { label: '마감완료', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
+    if (days <= 7) return { label: `D-${days}`, color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
+    return { label: `D-${days}`, color: 'bg-black text-white', text: '안정적인 모집 중' };
   };
 
   const dDay = getDDay();
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
-      <nav className="w-full bg-white/80 backdrop-blur-md border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
+      <nav className="print:hidden w-full bg-white/80 backdrop-blur-md border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <Link href="/" className="group flex items-center gap-2">
             <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">기틀</span>
             <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
           </Link>
           <div className="flex items-center gap-6">
-            <span className="bg-blue-50 text-blue-700 px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest border border-blue-100 italic">{post.category}</span>
+            <span className="bg-black text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
             <button onClick={handleDelete} className="text-red-400 font-bold text-xs uppercase tracking-widest opacity-20 hover:opacity-100 transition-opacity">Delete</button>
           </div>
         </div>
       </nav>
 
+      {/* Print Only Header */}
+      <div className="hidden print:block text-center pt-16 pb-8 border-b-4 border-slate-900 mb-12">
+        <h1 className="text-4xl font-black tracking-tighter">GITEUL INTELLIGENCE REPORT</h1>
+        <p className="text-lg font-bold text-slate-500 mt-2">Premium AI Curation Data Center</p>
+      </div>
+
       <header className="max-w-3xl mx-auto px-6 pt-12 pb-12">
         <div className="space-y-8">
             {dDay && (
               <div className="flex items-center gap-3 animate-bounce-subtle">
-                <span className={`${dDay.color} text-white px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
+                <span className={`${dDay.color} px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
                   {dDay.label}
                 </span>
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">실시간 마감 임박 알림</span>
+                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">{dDay.text}</span>
               </div>
             )}
 
@@ -267,8 +282,18 @@ export default function ArticleDetailClient({ id }: { id: string }) {
           </ReactMarkdown>
         </div>
 
+        {isGovSupport && (post.notice_url || post.url) && (
+            <div className="mt-20 -mb-4 flex flex-col items-center">
+               <a href={post.notice_url || post.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 px-12 py-5 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 font-black text-[16px] tracking-widest hover:border-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-lg hover:shadow-2xl">
+                   <span>🌐 공식 웹사이트 원문 공고 확인하기</span>
+                   <svg className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+               </a>
+               <p className="mt-4 text-[12px] font-bold text-slate-400 tracking-wider">이동 시 해당 웹사이트(K-Startup 등)의 새 창이 열립니다.</p>
+            </div>
+        )}
+
         {isGovSupport && !isStrategyPost && (
-            <div className="mt-24 p-12 bg-slate-900 rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">
+            <div className="print:hidden mt-24 p-12 bg-slate-900 rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="space-y-4 relative z-10">
                     <span className="text-blue-400 text-xs font-black uppercase tracking-[0.5em] animate-pulse italic">Professional Insight Upgrade</span>
@@ -285,13 +310,22 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             </div>
         )}
 
-        <div className="mt-32 pt-20 border-t-2 border-slate-100 flex flex-col items-center gap-12 bg-slate-50 py-20 rounded-[4rem]">
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">합격을 부르는 인사이트를 공유하세요.</h3>
+        <div className="print:hidden mt-32 pt-20 border-t-2 border-slate-100 flex flex-col items-center gap-12 bg-slate-50 py-20 rounded-[4rem]">
+            <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
+              {isGovSupport ? '합격을 부르는 인사이트를 공유하세요.' : '핵심 인사이트를 주변에 공유하세요.'}
+            </h3>
             <div className="flex flex-col md:flex-row items-center gap-6">
-                <button onClick={handleCopyAnalysis} className={`flex items-center gap-4 px-12 py-6 rounded-2xl font-black text-[15px] tracking-widest transition-all shadow-xl ring-2 ${copied ? 'bg-green-500 text-white ring-green-200' : 'bg-white text-slate-800 ring-slate-100 hover:ring-blue-600'}`}>
-                    {copied ? '✅ 복사 완료! 붙여넣으세요 ' : '🔍 전략 분석문 복사하기'}
+                {isGovSupport && (
+                  <button onClick={handleCopyAnalysis} className={`flex items-center gap-4 px-8 py-6 rounded-2xl font-black text-[15px] tracking-widest transition-all shadow-xl ring-2 ${copied ? 'bg-green-500 text-white ring-green-200' : 'bg-white text-slate-800 ring-slate-100 hover:ring-blue-600'}`}>
+                      {copied ? '✅ 복사 완료! 붙여넣으세요 ' : '🔍 전략 분석문 복사하기'}
+                  </button>
+                )}
+                <button onClick={handlePrint} className="flex items-center gap-4 bg-slate-900 text-white px-8 py-6 rounded-2xl font-black text-[15px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
+                  🖨️ PDF 리포트 저장
                 </button>
-                <button onClick={handleLinkedInShare} className="flex items-center gap-4 bg-[#0077b5] text-white px-12 py-6 rounded-2xl font-black text-[15px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">LinkedIn 공유하기</button>
+                <button onClick={handleLinkedInShare} className="flex items-center gap-4 bg-[#0077b5] text-white px-8 py-6 rounded-2xl font-black text-[15px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl">
+                  LinkedIn 공유하기
+                </button>
             </div>
         </div>
 
@@ -301,10 +335,18 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             50% { transform: translateY(-4px); }
           }
           .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
+          
+          @media print {
+            body { font-size: 11pt !important; background: white !important; }
+            article { max-width: 100% !important; padding: 0 !important; }
+            .article-content { padding: 0px !important; }
+            h2, h3 { page-break-after: avoid; }
+            p, ul, li { page-break-inside: avoid; }
+          }
         ` }} />
       </article>
 
-      <footer className="bg-white py-16 mt-16 border-t border-slate-100 text-center">
+      <footer className="print:hidden bg-white py-16 mt-16 border-t border-slate-100 text-center">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
           <div className="flex items-center gap-2">
             <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
@@ -326,7 +368,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       {/* Floating Scroll to Top */}
       <button 
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-10 right-10 w-14 h-14 bg-white shadow-2xl rounded-full border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group z-40"
+        className="print:hidden fixed bottom-10 right-10 w-14 h-14 bg-white shadow-2xl rounded-full border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group z-40"
       >
         <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
       </button>

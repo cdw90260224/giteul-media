@@ -63,11 +63,27 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
       const attrVal = link.attr('onclick') || link.attr('href') || '';
       const snMatch = attrVal.match(/pbancSn=(\d+)/) || attrVal.match(/go_view\('?(\d+)'?\)/);
       if (snMatch) {
+        // [수정] 링크 텍스트뿐만 아니라 부모 li 전체에서 날짜 찾기 (더 정확함)
+        const parentLiText = link.closest('li').text().replace(/\s+/g, ' ').trim();
+        let extractedDate = null;
+        const dateMatch = parentLiText.match(/마감일자\s*(\d{4})[./-](\d{2})[./-](\d{2})/) || parentLiText.match(/(\d{4})[./-](\d{2})[./-](\d{2})/);
+        if (dateMatch) {
+          extractedDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+        }
+
         let title = link.find('p.tit, .tit, dt, strong').first().text().trim();
         if (!title) title = link.text().trim();
-        title = title.replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+|조회\s*[\d,]+/gi, '').replace(/\s+/g, ' ').trim();
+        
+        // 제목 정제 (원문의 메타데이터 제거)
+        title = title.replace(/새로운게시글|D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+|조회\s*[\d,]+/gi, '').replace(/\s+/g, ' ').trim();
+        
         if (title && title.length > 5 && !targets.find(t => t.sn === snMatch[1])) {
-          targets.push({ title, sn: snMatch[1], url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}` });
+          targets.push({ 
+            title, 
+            sn: snMatch[1], 
+            url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
+            rawDate: extractedDate 
+          });
         }
       }
     });
@@ -88,35 +104,27 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
     for (let i = 0; i < targetsToProcess.length; i++) {
         const item = targetsToProcess[i];
         
-        // IP 차단 방지를 위한 인간다운 속도(Time Sleep) 부여 - 첫 번째 항목 이후부터 대기
+        // IP 차단 방지를 위한 인간다운 속도(Time Sleep) 부여
         if (i > 0) {
-            const delayms = Math.floor(Math.random() * 15000) + 15000; // 15초 ~ 30초 사이 랜덤 딜레이
+            const delayms = Math.floor(Math.random() * 5000) + 5000; // 지시대로 5~10초 대기 (테스트 효율을 위해 약간 단축)
             console.log(`[Crawling] IP 차단 방지를 위해 ${delayms/1000}초간 대기합니다...`);
             await sleep(delayms);
         }
 
         try {
             const sector = detectSector(item.title);
-            const prompt = `당신은 대한민국 최고 수준의 기업 분석 기자이자 정부지원사업 전략 컨설턴트입니다. 
-            단순한 요약이 아니라, 기업들에게 실질적인 '돈이 되는 정보'와 '합격 전략'을 제공해야 합니다.
+            const prompt = `당신은 대한민국 기업 지원사업 전문 큐레이터입니다. 
+            [영구 지침]
+            1. 현재 연도는 2026년입니다. 모든 날짜 판단의 기준은 2026년입니다.
+            2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 원문에서 추출된 마감일 [${item.rawDate || '알 수 없음'}] 이 있다면 반드시 사수하세요.
+            3. 초기 크롤링 단계에서는 '상세 전략 리포트'나 '기자의 시선'을 절대 작성하지 마세요. (사용자 요청 시 별도 생성 예정)
+            4. 카테고리는 반드시 '정부지원공고'로 설정하세요. 
+
+            제공된 원문에서 핵심 정보만 추출하여 간결한 요약 보고서를 작성하세요.
 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
-            JSON 구조: { "title": "...", "summary": "...", "category": "정부지원공고", "content": "...", "notice_url": "...", "deadline": "YYYY-MM-DD 또는 상시 접수", "sector": "${sector}", "image_keyword": "업무와 관련된 대표 영문 키워드 1개 (예: business, agriculture, technology, store)" }
+            JSON 구조: { "title": "공고명을 깔끔하게 정제한 제목", "summary": "3줄 이내의 간결한 요약", "category": "정부지원공고", "content": "마크다운 형식의 기본 공고 정보 (지원대상, 혜택, 일정)", "deadline": "YYYY-MM-DD 또는 상시 접수", "sector": "${sector}", "image_keyword": "business" }
 
-            --- 마크다운 작성(content) 및 텍스트 규정 ---
-            1. 입력 제목에 섞여있는 지저분한 메타데이터(예: "사업화", "접수중", 중복된 텍스트, 기관명 등)를 절대 그대로 노출하거나 제목/목차로 사용하지 마세요. 깔끔하게 정제하세요.
-            2. 불필요한 **두꺼운 글씨(Bold)** 남용을 완전히 금지합니다.
-            3. 본문은 장황한 마크다운 기호 남용 없이, 다음 3가지 핵심 주제로만 깔끔하게 리스트 형태로 전개하세요:
-               - 지원 대상 및 자격 요건
-               - 핵심 혜택 및 지원 규모
-               - 주요 일정 및 신청 방법
-            4. 절대 마크다운 표(Table, | | |)를 생성하지 마세요. 테이블 모양 대신 가독성 높은 텍스트 나열형 리스트(Bullet points)를 사용하세요.
-            5. 마지막에는 "### ✒️ 기자의 시선: 전략적 분석" 섹션을 반드시 포함하고, 인용구(> ) 포맷 안에 다음 내용을 담으세요:
-               - [왜 주목해야 하는가?]: 이 공고의 파격적인 혜택이나 전략적 가치 분석
-               - [당첨 확률을 높이는 핵심 포인트]: 사업계획서/발표 시 강조해야 할 유정(Winning Edge)
-               - [이런 업체는 무조건 지원하세요]: 가장 유리한 기업 프로필 제안
-            
-            이미지 키워드는 공고 성격에 따라 'startup', 'finance', 'factory', 'global' 중 하나를 선택하세요.
             입력 원천 데이터: ${item.title}
             공고URL: ${item.url}`;
 
@@ -126,16 +134,17 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const raw = JSON.parse(jsonStr);
 
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            const validatedDeadline = (raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : null;
+            // AI가 준 날짜보다 우리가 파싱한 날짜가 더 신뢰도 높을 수 있음 (우선순위 부여)
+            let finalDeadline = (raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : (item.rawDate || null);
 
-            if (validatedDeadline) {
+            if (finalDeadline) {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              const deadline = new Date(validatedDeadline);
-              if (deadline < today) {
-                console.log(`[Pipeline] Skipping expired notice: ${raw.title} (Deadline: ${validatedDeadline})`);
-                results.push({ success: false, message: '마감된 공고이므로 집필을 중단합니다.', code: 'EXPIRED' });
-                continue;
+              const deadlineDate = new Date(finalDeadline);
+              
+              if (deadlineDate < today) {
+                console.warn(`[Pipeline] Hallucination detected or Expired: ${raw.title} (Extracted: ${finalDeadline}). Setting to null.`);
+                finalDeadline = null;
               }
             }
 
@@ -153,7 +162,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               content: raw.content, 
               notice_url: item.url, 
               image_url: imageUrl,
-              deadline_date: validatedDeadline, 
+              deadline_date: finalDeadline, 
               created_at: new Date().toISOString()
             };
 

@@ -78,16 +78,17 @@ function SectorBadge({ sector }: { sector: string }) {
   );
 }
 
-function DDayBadge({ deadline, category, className = "" }: { deadline?: string, category?: string, className?: string }) {
-  const isGov = category === '정부지원공고' || category === 'Strategy' || category?.toLowerCase() === 'strategy';
+function DDayBadge({ deadline, category, title, className = "" }: { deadline?: string, category?: string, title?: string, className?: string }) {
+  const isStrategy = title?.startsWith('[전략]') || category?.toLowerCase() === 'strategy';
   const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(category || '');
   const isMarket = category === '기업/마켓 뉴스';
 
   const renderNoDeadline = () => {
-    if (isGov) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>STRATEGY</span>;
+    if (isStrategy) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>STRATEGY</span>;
     if (isTech) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-purple-600 text-white tracking-widest ${className}`}>TECH</span>;
     if (isMarket) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-teal-600 text-white tracking-widest ${className}`}>MARKET</span>;
     if (category === '창업 뉴스') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-red-600 text-white tracking-widest ${className}`}>STARTUP</span>;
+    if (category === '정부지원공고') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>NOTICE</span>;
     return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-slate-400 text-white tracking-widest ${className}`}>NEWS</span>;
   };
 
@@ -102,13 +103,15 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
   const diff = dDate.getTime() - today.getTime();
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
+  if (isStrategy) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>STRATEGY</span>;
+
   let label = `D-${days}`;
   let color = 'bg-slate-900 text-white';
 
   if (days === 0) { label = 'D-DAY'; color = 'bg-red-600 text-white'; }
   else if (days < 0) { label = 'EXPIRED'; color = 'bg-slate-300 text-slate-500'; }
-  else if (days <= 3) { label = `D-${days}`; color = 'bg-red-600 text-white'; }
-  else if (days > 3) { label = `D-${days}`; color = 'bg-slate-100 text-slate-800 border border-slate-200'; }
+  else if (days <= 3) { label = `D-${days}`; color = 'bg-red-600 text-white shadow-lg shadow-red-500/20'; }
+  else if (days > 3) { label = `D-${days}`; color = 'bg-blue-50 text-blue-700 border-2 border-blue-100 font-black'; }
 
   return (
     <span className={`inline-block px-2 py-1 rounded-sm text-[10px] font-black tracking-tighter ${color} ${className}`}>
@@ -117,10 +120,23 @@ function DDayBadge({ deadline, category, className = "" }: { deadline?: string, 
   );
 }
 
+function BookmarkButton({ id, isBookmarked, onToggle, className = "" }: { id: number, isBookmarked: boolean, onToggle: (id: number) => void, className?: string }) {
+  return (
+    <button 
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(id); }}
+      className={`group/btn flex items-center justify-center p-2 rounded-full transition-all ${isBookmarked ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'} ${className}`}
+    >
+      <svg className={`w-5 h-5 transition-transform group-hover/btn:scale-110 ${isBookmarked ? 'fill-current' : 'fill-none stroke-current'}`} strokeWidth={2} viewBox="0 0 24 24">
+        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    </button>
+  );
+}
+
 export default function Home() {
   const [newsItems, setNewsItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // removed activeCategory
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<{ 
@@ -146,7 +162,7 @@ export default function Home() {
   });
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'closing' | 'new' | 'interest'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'closing' | 'new' | 'interest' | 'favorites'>('all');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const POSTS_PER_PAGE = 10;
@@ -210,6 +226,14 @@ export default function Home() {
     }
   };
 
+  const toggleBookmark = (id: number) => {
+    setBookmarks(prev => {
+      const next = prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id];
+      localStorage.setItem('antigravity_bookmarks', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleFilterToggle = (type: 'stages' | 'benefits', value: string) => {
     const list = filters[type];
     const newList = list.includes(value) ? list.filter(v => v !== value) : [...list, value];
@@ -235,9 +259,17 @@ export default function Home() {
     setCurrentPage(1);
   };
 
-
-
   useEffect(() => {
+    // Load favorites from localStorage
+    const saved = localStorage.getItem('antigravity_bookmarks');
+    if (saved) {
+      try {
+        setBookmarks(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse bookmarks', e);
+      }
+    }
+    
     async function fetchPosts() {
       try {
         const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
@@ -249,25 +281,44 @@ export default function Home() {
     fetchPosts();
   }, []);
 
-  // 데이터 가공 로직
-  const govSupportPosts = newsItems.filter(i => (i.category === '정부지원공고' || i.category?.toLowerCase() === 'strategy') && !i.title.startsWith('[전략]'));
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  const govSupportPosts = newsItems.filter(i => {
+    const isGov = (i.category === '정부지원공고' || i.category?.toLowerCase() === 'strategy');
+    if (!isGov || i.title.startsWith('[전략]')) return false;
+    if (i.deadline_date) {
+        const d = new Date(i.deadline_date);
+        d.setHours(0,0,0,0);
+        if (d < todayDate) return false;
+    }
+    return true;
+  });
+
   const strategyPosts = newsItems.filter(i => i.title.startsWith('[전략]'));
   const techPosts = newsItems.filter(i => ['AI/테크 트렌드', 'AI/Tech', 'ai/tech', 'tech', 'Tech'].includes(i.category));
   
-  const heroMain = govSupportPosts[0] || newsItems[0] || { id: 0, title: '기틀 미디어가 최신 소식을 준비 중입니다.', summary: '잠시만 기다려 주세요.', category: 'NOTICE' };
-  
-  // 조회수 기반 인기 기사 정렬 (조회수 데이터가 없다면 고유 ID 등을 활용한 결정론적 랜덤값으로 대체하여 인기 기사 시뮬레이션)
+  // 조회수 기반 인기 기사 정렬 시뮬레이션
   const getSimulatedViews = (item: any) => item.views !== undefined ? item.views : (item.id * 37) % 500;
+
+  const heroMain = govSupportPosts[0] || techPosts[0] || newsItems[0] || { id: 0, title: '기틀 미디어가 최신 소식을 준비 중입니다.', summary: '잠시만 기다려 주세요.', category: 'NOTICE' };
+
   const latestList = [...newsItems]
-    .filter(i => i.id !== heroMain.id)
+    .filter(i => {
+        if (i.id === heroMain.id) return false;
+        if (i.deadline_date) {
+            const d = new Date(i.deadline_date);
+            d.setHours(0,0,0,0);
+            if (d < todayDate) return false;
+        }
+        return true;
+    })
     .sort((a, b) => getSimulatedViews(b) - getSimulatedViews(a))
     .slice(0, 5);
 
   const magazineList = [...strategyPosts, ...govSupportPosts.slice(0, 2), ...techPosts.slice(0, 2)].slice(0, 4);
   const baseInfinityList = newsItems.filter(i => ![heroMain.id, ...latestList.map(l => l.id), ...magazineList.map(m => m.id)].includes(i.id));
 
-  // Autonomous Feed D-Day 스마트 정렬
-  const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);
   
   let allInfinityList = [...baseInfinityList].sort((a, b) => {
@@ -439,25 +490,21 @@ export default function Home() {
       })
       .sort((a, b) => new Date(a.deadline_date!).getTime() - new Date(b.deadline_date!).getTime());
   } else if (activeTab === 'interest') {
-    // 3. PERSONALIZED: 관심 분야 (중복 허용 가능하지만 일단 관심사 위주로만)
+    // 3. PERSONALIZED: 관심 분야
     finalFilteredList = finalFilteredList
-      .filter(i => interestSectors.some(sec => (i.title + i.summary).includes(sec)))
+      .filter(i => interestSectors.some(sec => (i.title + (i.summary || '')).toLowerCase().includes(sec.toLowerCase())))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  } else if (activeTab === 'favorites') {
+    // 4. FAVORITES: 찜한 공고
+    finalFilteredList = finalFilteredList
+      .filter(i => bookmarks.includes(i.id))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   } else {
-    // 4. ALL UPDATES: 가장 핫하고 조회수 높은 인기순 (마감된 공고 제외)
-    finalFilteredList = finalFilteredList
-      .filter(i => {
-        if (!i.deadline_date) return true; // 기한이 없거나 일반 뉴스 통과
-        const d = new Date(i.deadline_date);
-        if (isNaN(d.getTime())) return true;
-        d.setHours(0, 0, 0, 0);
-        const diff = Math.ceil((d.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-        return diff >= 0; // 오늘 이후로 기한이 남은 것만 남김 (마감된 공고 제외)
-      })
-      .sort((a, b) => {
+    // 5. ALL UPDATES: 인기순 정렬
+    finalFilteredList = finalFilteredList.sort((a, b) => {
         const getViews = (item: any) => item.views !== undefined ? item.views : (item.id * 37) % 500;
         return getViews(b) - getViews(a);
-      });
+    });
   }
 
   // 페이지네이션 계산
@@ -494,10 +541,12 @@ export default function Home() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
                 />
               </div>
-              <div className="p-10 min-w-0">
-                <div className="flex items-center gap-3 mb-4">
-                   <DDayBadge deadline={heroMain.deadline_date} category={heroMain.category} className="!text-sm !px-4 !py-1.5" />
-                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{heroMain.category}</span>
+              <div className="p-10 min-w-0 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <DDayBadge deadline={heroMain.deadline_date} category={heroMain.category} title={heroMain.title} className="!text-sm !px-4 !py-1.5" />
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{heroMain.category}</span>
+                  </div>
                 </div>
                 <h2 className="text-2xl lg:text-3xl font-black text-slate-900 mb-6 tracking-wide truncate">
                   {parseTitle(heroMain.title).title}
@@ -522,7 +571,7 @@ export default function Home() {
                   <LinkNext key={item.id} href={`/article/${item.id}`} className="block py-6 group hover:bg-white transition-all px-2 -mx-2 hover:shadow-[20px_0_40px_-10px_rgba(0,0,0,0.05)] border-l-0 hover:border-l-4 hover:border-slate-900 pl-2 hover:pl-6 min-w-0">
                     <div className="flex flex-col gap-3 min-w-0">
                       <div className="flex items-center gap-2">
-                         <DDayBadge deadline={item.deadline_date} category={item.category} className="!scale-100 !rounded-none !py-0.5" />
+                         <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} className="!scale-100 !rounded-none !py-0.5" />
                          <span className={`text-[10px] font-black tracking-widest transition-colors ${['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'text-purple-400 group-hover:text-purple-600' : item.category === '창업 뉴스' ? 'text-red-500 group-hover:text-red-700' : item.category === '기업/마켓 뉴스' ? 'text-teal-400 group-hover:text-teal-600' : 'text-slate-400 group-hover:text-blue-600'}`}>
                            {['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(item.category || '') ? 'TECH' : item.category === '창업 뉴스' ? '창업' : item.category === '기업/마켓 뉴스' ? '마켓' : item.category}
                          </span>
@@ -602,11 +651,12 @@ export default function Home() {
                   { id: 'new', label: '오늘 등록' },
                   { id: 'closing', label: '마감 임박' },
                   { id: 'interest', label: '관심 분야' },
+                  { id: 'favorites', label: '찜한 공고' },
                 ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => { setActiveTab(tab.id as any); setCurrentPage(1); }}
-                    className={`px-6 py-2.5 rounded-lg text-[10px] font-black transition-all tracking-widest ${activeTab === tab.id ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-6 py-2.5 rounded-lg text-[10px] font-black transition-all tracking-widest ${activeTab === tab.id ? 'bg-white text-slate-900 border border-slate-100 shadow-sm' : 'text-slate-400 hover:text-white'}`}
                   >
                     {tab.label}
                   </button>
@@ -631,34 +681,27 @@ export default function Home() {
                     const { title, institution } = parseTitle(item.title);
                     const isNew = new Date(item.created_at).toDateString() === new Date().toDateString();
                     const isInterest = interestSectors.some(sec => item.summary?.includes(`[${sec}]`));
-                    
-                    let deadlineStr = '';
-                    if (item.deadline_date) {
-                      const d = new Date(item.deadline_date);
-                      if (!isNaN(d.getTime())) {
-                        deadlineStr = `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} 마감`;
-                      }
-                    }
+                    const isBookmarked = bookmarks.includes(item.id);
+                    const isExpired = item.deadline_date && new Date(item.deadline_date).setHours(0,0,0,0) < todayDate.setHours(0,0,0,0);
 
                     return (
                       <LinkNext 
                         key={item.id} 
                         href={`/article/${item.id}`}
-                        className="group bg-white p-6 lg:p-7 transition-all hover:bg-[#FDFDFE] relative flex flex-col md:flex-row items-start md:items-center gap-5 lg:gap-8 hover:shadow-[inset_4px_0_0_0_#2563EB]"
+                        className={`group bg-white p-6 lg:p-7 transition-all hover:bg-[#FDFDFE] relative flex flex-col md:flex-row items-center gap-5 lg:gap-8 hover:shadow-[inset_4px_0_0_0_#2563EB] ${isExpired ? 'grayscale opacity-60' : ''}`}
                       >
-                        {/* Left: Metadata & Badges (Fixed Width) */}
-                        <div className="flex md:flex-col justify-between md:justify-start items-center md:items-start gap-4 md:gap-3.5 w-full md:w-40 shrink-0">
-                           <div className="flex md:flex-col items-center md:items-start gap-2.5 md:gap-2">
-                             <DDayBadge deadline={item.deadline_date} category={item.category} className="!text-[12px] !px-3 !py-1 origin-left shadow-sm" />
-                             {deadlineStr && <span className="text-[13px] font-black text-slate-500 tracking-wider">{deadlineStr}</span>}
-                           </div>
-                           <div className="flex flex-row flex-wrap gap-1.5 items-end md:items-start md:mt-0.5">
-                             {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 border border-amber-100 uppercase tracking-tighter rounded-sm mt-0.5">추천</span>}
-                             {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 border border-blue-100 uppercase tracking-widest rounded-sm mt-0.5">NEW</span>}
-                           </div>
-                        </div>
-                        
-                        {/* Center: Title & Summary */}
+                         {/* Left: Metadata & Badges (Fixed Width) */}
+                         <div className="flex md:flex-col justify-between md:justify-start items-center md:items-start gap-4 md:gap-3.5 w-full md:w-40 shrink-0">
+                            <div className="flex md:flex-col items-center md:items-start gap-2.5 md:gap-2">
+                              <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} className="!text-[12px] !px-3 !py-1 origin-left shadow-sm" />
+                            </div>
+                            <div className="flex flex-row flex-wrap gap-1.5 items-end md:items-start md:mt-0.5">
+                              {isInterest && <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 border border-amber-100 uppercase tracking-tighter rounded-sm mt-0.5">추천</span>}
+                              {isNew && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 border border-blue-100 uppercase tracking-widest rounded-sm mt-0.5">NEW</span>}
+                            </div>
+                         </div>
+                         
+                         {/* Center: Title & Summary */}
                         <div className="flex flex-col gap-2 flex-1 min-w-0 w-full mt-2 md:mt-0">
                           <div className="flex items-center gap-2 mb-0.5">
                              <span className="text-[10px] font-bold text-slate-500 tracking-wider bg-slate-50 px-1.5 py-0.5 rounded-sm">{item.category}</span>

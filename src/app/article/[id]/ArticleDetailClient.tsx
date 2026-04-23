@@ -26,9 +26,16 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const [upgrading, setUpgrading] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') setShareUrl(window.location.href);
+    if (typeof window !== 'undefined') {
+      setShareUrl(window.location.href);
+      const saved = localStorage.getItem('antigravity_bookmarks');
+      if (saved) {
+        try { setBookmarks(JSON.parse(saved)); } catch (e) { }
+      }
+    }
     async function fetchPostData() {
       if (!id) return;
       try {
@@ -87,25 +94,37 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     if (!error) window.location.href = '/';
   };
 
+  const toggleBookmark = () => {
+    if (!post) return;
+    setBookmarks(prev => {
+      const next = prev.includes(post.id) ? prev.filter(b => b !== post.id) : [...prev, post.id];
+      localStorage.setItem('antigravity_bookmarks', JSON.stringify(next));
+      return next;
+    });
+  };
+
   if (loading) return <div className="min-h-screen bg-white flex items-center justify-center font-black animate-pulse text-slate-300 uppercase tracking-widest">Giteul Intelligence...</div>;
   if (!post) return <div className="min-h-screen flex items-center justify-center">Post not found.</div>;
 
   const isGovSupport = post.category === '정부지원공고';
   const isStrategyPost = post.title.includes('[전략]');
+  const isBookmarked = bookmarks.includes(post.id);
 
   const getDDay = () => {
-    const isGov = post.category === '정부지원공고' || post.category === 'Strategy' || post.category?.toLowerCase() === 'strategy';
+    const isStrategy = post.title.includes('[전략]') || post.category?.toLowerCase() === 'strategy';
     const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(post.category || '');
     const isMarket = post.category === '기업/마켓 뉴스';
 
     const getNoDeadlineInfo = () => {
-      if (isGov) return { label: '[상시]', color: 'bg-blue-600', text: '상시 접수' };
-      if (isTech) return { label: 'TECH', color: 'bg-purple-600', text: '테크 트렌드 리포트' };
-      if (isMarket) return { label: 'MARKET', color: 'bg-teal-600', text: '기업/마켓 리포트' };
-      return { label: 'NEWS', color: 'bg-slate-400', text: '최신 뉴스 업데이트' };
+      if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
+      if (isTech) return { label: 'TECH', color: 'bg-purple-600 text-white', text: '테크 트렌드 리포트' };
+      if (isMarket) return { label: 'MARKET', color: 'bg-teal-600 text-white', text: '기업/마켓 리포트' };
+      if (post.category === '정부지원공고') return { label: 'NOTICE', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
+      return { label: 'NEWS', color: 'bg-slate-400 text-white', text: '최신 뉴스 업데이트' };
     };
 
     if (!post.deadline_date) return getNoDeadlineInfo();
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(post.deadline_date);
@@ -115,10 +134,12 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     const diff = deadline.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     
+    if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
+
     if (days === 0) return { label: 'D-DAY', color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
-    if (days < 0) return { label: '마감완료', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
+    if (days < 0) return { label: 'EXPIRED', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
     if (days <= 7) return { label: `D-${days}`, color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
-    return { label: `D-${days}`, color: 'bg-black text-white', text: '안정적인 모집 중' };
+    return { label: `D-${days}`, color: 'bg-slate-900 text-white', text: '안정적인 모집 중' };
   };
 
   const dDay = getDDay();
@@ -132,6 +153,13 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
           </Link>
           <div className="flex items-center gap-6">
+            <button 
+              onClick={toggleBookmark}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all font-black text-xs tracking-widest ${isBookmarked ? 'bg-red-50 border-red-200 text-red-500' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-900 hover:text-slate-900'}`}
+            >
+              <svg className={`w-4 h-4 ${isBookmarked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+              {isBookmarked ? '관심 공고 취소' : '관심 공고 등록'}
+            </button>
             <span className="bg-black text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
             <button onClick={handleDelete} className="text-red-400 font-bold text-xs uppercase tracking-widest opacity-20 hover:opacity-100 transition-opacity">Delete</button>
           </div>
@@ -147,11 +175,19 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       <header className="max-w-3xl mx-auto px-6 pt-12 pb-12">
         <div className="space-y-8">
             {dDay && (
-              <div className="flex items-center gap-3 animate-bounce-subtle">
-                <span className={`${dDay.color} px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
-                  {dDay.label}
-                </span>
-                <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">{dDay.text}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 animate-bounce-subtle">
+                  <span className={`${dDay.color} px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
+                    {dDay.label}
+                  </span>
+                  <span className="text-gray-500 text-xs font-bold uppercase tracking-widest">{dDay.text}</span>
+                </div>
+                <button 
+                  onClick={toggleBookmark}
+                  className={`group flex items-center justify-center p-3 rounded-full border-2 transition-all ${isBookmarked ? 'bg-red-50 border-red-300 text-red-500 shadow-lg shadow-red-200 scale-110' : 'bg-white border-slate-100 text-slate-300 hover:border-red-400 hover:text-red-400'}`}
+                >
+                  <svg className={`w-8 h-8 ${isBookmarked ? 'fill-current animate-heart-pop' : 'fill-none group-hover:scale-110 transition-transform'}`} stroke="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+                </button>
               </div>
             )}
 
@@ -378,7 +414,13 @@ export default function ArticleDetailClient({ id }: { id: string }) {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-4px); }
         }
+        @keyframes heart-pop {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.4); }
+          100% { transform: scale(1); }
+        }
         .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
+        .animate-heart-pop { animation: heart-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
       ` }} />
     </div>
   );

@@ -194,25 +194,26 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
             <h1 className="text-3xl md:text-5xl font-black text-[#0f172a] leading-[1.2] tracking-tighter flex items-center flex-wrap gap-4">
                 {post.title
-                  .replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '')
-                  .replace(/조회\s*[\d,]+|등록일\s*[\d-.]+/gi, '') // 노이즈 제거 (조회수 등)
+                  .replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+|마감\s*\~[\d-.]+/gi, '')
+                  .replace(/조회\s*[\d,]+|조회수\s*[\d,]+|등록일\s*[\d-.]+|관리자|공공기관|조회|창업진흥원|[\d-]{10}/gi, '') // 더 강력한 노이즈 제거
                   .replace(/\[\s*전략\s*\]/gi, '[전략]')
+                  .replace(/\s+/g, ' ')
                   .trim()}
-                {post.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
+                {post.summary?.match(/^\[(농업|기술\/IT|소상공인|바이오\/헬스케어|에너지\/ESG|제조\/하드웨어|문화\/콘텐츠|커머스\/서비스|글로벌\/수출)\]/) && (
                   <SectorBadge sector={post.summary.match(/^\[(.*?)\]/)[1]} />
                 )}
             </h1>
             
-            <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[3rem] border border-slate-200/50 shadow-sm group hover:border-blue-200 transition-all duration-500">
-                <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                    <span className="text-9xl font-black italic">BRIEF</span>
+            <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[4rem] border border-slate-200/50 shadow-sm group hover:border-blue-200 transition-all duration-500 overflow-hidden">
+                <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity select-none">
+                    <span className="text-[12rem] font-black italic">REPORT</span>
                 </div>
-                <div className="relative z-10 space-y-6">
+                <div className="relative z-10 space-y-8">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-px bg-blue-600" />
-                    <span className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] block">Executive Briefing</span>
+                    <div className="w-10 h-px bg-blue-600" />
+                    <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.5em] block">Executive Briefing</span>
                   </div>
-                  <div className="text-lg md:text-xl text-slate-700 font-semibold leading-[1.8] tracking-tight summary-content">
+                  <div className="text-lg md:text-xl text-slate-700 font-semibold leading-[1.9] tracking-tight summary-content prose prose-slate max-w-none">
                     <ReactMarkdown rehypePlugins={[rehypeRaw]}>
                       {post.summary?.replace(/^\[.*?\]\s*/, '')}
                     </ReactMarkdown>
@@ -429,6 +430,22 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         }
         .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
         .animate-heart-pop { animation: heart-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .summary-content h3 {
+          font-size: 1.5rem;
+          font-weight: 900;
+          color: #0f172a;
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
+          line-height: 1.3;
+        }
+        .summary-content p {
+          margin-bottom: 1rem;
+          line-height: 1.8;
+        }
+        .summary-content p:last-child {
+          margin-bottom: 0;
+        }
       ` }} />
     </div>
   );

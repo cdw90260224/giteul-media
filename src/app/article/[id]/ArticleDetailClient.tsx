@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 function SectorBadge({ sector }: { sector: string }) {
   if (!sector || sector === '일반') return null;
@@ -192,24 +193,30 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             )}
 
             <h1 className="text-3xl md:text-5xl font-black text-[#0f172a] leading-[1.2] tracking-tighter flex items-center flex-wrap gap-4">
-                {post.title.replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '').trim()}
+                {post.title
+                  .replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '')
+                  .replace(/조회\s*[\d,]+|등록일\s*[\d-.]+/gi, '') // 노이즈 제거 (조회수 등)
+                  .replace(/\[\s*전략\s*\]/gi, '[전략]')
+                  .trim()}
                 {post.summary?.match(/^\[(농업|기술\/IT|소상공인)\]/) && (
                   <SectorBadge sector={post.summary.match(/^\[(.*?)\]/)[1]} />
                 )}
             </h1>
             
-            <div className="relative mt-12 p-10 md:p-14 bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-blue-900/5 group hover:border-blue-200 transition-all duration-500">
+            <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[3rem] border border-slate-200/50 shadow-sm group hover:border-blue-200 transition-all duration-500">
                 <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                    <span className="text-9xl font-black italic">SUMMARY</span>
+                    <span className="text-9xl font-black italic">BRIEF</span>
                 </div>
                 <div className="relative z-10 space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-px bg-blue-600" />
                     <span className="text-blue-600 text-[10px] font-black uppercase tracking-[0.4em] block">Executive Briefing</span>
                   </div>
-                  <p className="text-xl md:text-2xl text-slate-800 font-bold leading-relaxed tracking-tight italic">
-                      {post.summary}
-                  </p>
+                  <div className="text-lg md:text-xl text-slate-700 font-semibold leading-[1.8] tracking-tight summary-content">
+                    <ReactMarkdown rehypePlugins={[rehypeRaw]}>
+                      {post.summary?.replace(/^\[.*?\]\s*/, '')}
+                    </ReactMarkdown>
+                  </div>
                 </div>
             </div>
         </div>
@@ -232,6 +239,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         <div className="max-w-none article-content">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={{
               h2: ({node, ...props}) => {
                 return (
@@ -314,7 +322,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               )
             }}
           >
-            {post.content.replace(/<div[^>]*>|<\/div>|---|#+/g, (match: string) => match === '---' || match.startsWith('#') ? match : '')}
+            {post.content}
           </ReactMarkdown>
         </div>
 

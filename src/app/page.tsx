@@ -34,7 +34,7 @@ const FILTER_KEYWORDS: Record<string, Record<string, string[]>> = {
 const ALL_TIMELINES = ['전체', '마감 임박(D-3)', '30일 이내(D-30)', '상시 모집'];
 const ALL_STAGES = ['예비창업', '초기(3년 미만)', '도약(7년 미만)', '성장(7년 이상)'];
 const ALL_BENEFITS = ['자금지원', 'R&D', '공간지원', '교육·멘토링', '수출·마케팅'];
-const ALL_SECTORS = ['전체', '농업', '기술/IT', '소상공인'];
+const ALL_SECTORS = ['전체', '기술/IT', '제조/하드웨어', '바이오/헬스케어', '에너지/ESG', '문화/콘텐츠', '커머스/서비스', '글로벌/수출', '농업', '소상공인'];
 const ALL_REGIONS = ['전체', '전국', '서울', '경기', '인천', '부울경', '해외'];
 const ALL_TARGETS = ['전체', '개인', '법인', '관계없이'];
 const ALL_SCALES = ['전체', '~1천만원', '~5천만원', '1억원 이상', '미정/문의'];
@@ -68,7 +68,13 @@ function SectorBadge({ sector }: { sector: string }) {
   const colors: Record<string, string> = {
     '농업': 'bg-green-50 text-green-700 border-green-200',
     '기술/IT': 'bg-blue-50 text-blue-700 border-blue-200',
-    '소상공인': 'bg-orange-50 text-orange-700 border-orange-200'
+    '소상공인': 'bg-orange-50 text-orange-700 border-orange-200',
+    '제조/하드웨어': 'bg-slate-100 text-slate-700 border-slate-300',
+    '바이오/헬스케어': 'bg-rose-50 text-rose-700 border-rose-200',
+    '에너지/ESG': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    '문화/콘텐츠': 'bg-purple-50 text-purple-700 border-purple-200',
+    '커머스/서비스': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    '글로벌/수출': 'bg-amber-50 text-amber-700 border-amber-200'
   };
   const colorClass = colors[sector] || 'bg-slate-50 text-slate-700 border-slate-200';
   return (
@@ -490,18 +496,32 @@ export default function Home() {
       })
       .sort((a, b) => new Date(a.deadline_date!).getTime() - new Date(b.deadline_date!).getTime());
   } else if (activeTab === 'interest') {
-    // 3. PERSONALIZED: 관심 분야
+    // 3. PERSONALIZED: 관심 분야 (활성 데이터를 우선순위로 정렬)
     finalFilteredList = finalFilteredList
       .filter(i => interestSectors.some(sec => (i.title + (i.summary || '')).toLowerCase().includes(sec.toLowerCase())))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a, b) => {
+        const isAExpired = a.deadline_date && new Date(a.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        const isBExpired = b.deadline_date && new Date(b.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        if (isAExpired !== isBExpired) return isAExpired ? 1 : -1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
   } else if (activeTab === 'favorites') {
-    // 4. FAVORITES: 찜한 공고
+    // 4. FAVORITES: 찜한 공고 (활성 데이터를 우선순위로 정렬)
     finalFilteredList = finalFilteredList
       .filter(i => bookmarks.includes(i.id))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a, b) => {
+        const isAExpired = a.deadline_date && new Date(a.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        const isBExpired = b.deadline_date && new Date(b.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        if (isAExpired !== isBExpired) return isAExpired ? 1 : -1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
   } else {
-    // 5. ALL UPDATES: 인기순 정렬
+    // 5. ALL UPDATES: 인기순 정렬 + 활성 데이터 우선
     finalFilteredList = finalFilteredList.sort((a, b) => {
+        const isAExpired = a.deadline_date && new Date(a.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        const isBExpired = b.deadline_date && new Date(b.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
+        if (isAExpired !== isBExpired) return isAExpired ? 1 : -1;
+        
         const getViews = (item: any) => item.views !== undefined ? item.views : (item.id * 37) % 500;
         return getViews(b) - getViews(a);
     });
@@ -552,7 +572,7 @@ export default function Home() {
                   {parseTitle(heroMain.title).title}
                 </h2>
                 <p className="text-base text-slate-600 line-clamp-2 leading-loose tracking-wide font-medium">
-                  {heroMain.summary}
+                  {heroMain.summary?.replace(/<[^>]*>/g, '')}
                 </p>
                 <div className="mt-8 text-xs font-bold text-slate-400 tracking-widest">{parseTitle(heroMain.title).institution} · 기틀 AI 미디어</div>
               </div>
@@ -714,7 +734,7 @@ export default function Home() {
                           </h4>
                           
                           <p className="text-[14px] lg:text-[15px] text-slate-500 font-medium line-clamp-1 md:line-clamp-2 leading-relaxed opacity-90 group-hover:opacity-100 transition-opacity">
-                            {item.summary?.replace(/^\[.*?\]\s*/, '')}
+                            {item.summary?.replace(/^\[.*?\]\s*/, '').replace(/<[^>]*>/g, '')}
                           </p>
 
                           {/* Mobile Action Text */}

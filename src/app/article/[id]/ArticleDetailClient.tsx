@@ -21,6 +21,52 @@ function SectorBadge({ sector }: { sector: string }) {
   );
 }
 
+function UpgradeLoadingOverlay() {
+  const [messageIndex, setMessageIndex] = useState(0);
+  const messages = [
+    "Gemini가 공고문을 정밀 분석 중입니다...",
+    "핵심 평가 지표를 추출하고 있습니다...",
+    "합격 가능성을 높이는 차별화 전략을 도출 중입니다...",
+    "경쟁 우위를 점할 수 있는 실전 시나리오를 구성하고 있습니다...",
+    "심사위원의 관점에서 리포트를 다듬고 있습니다...",
+    "거의 다 되었습니다. 잠시만 기다려 주세요!"
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [messages.length]);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center transition-all duration-500">
+      <div className="relative w-40 h-40 mb-16">
+        <div className="absolute inset-0 rounded-full border-[6px] border-blue-500/10 border-t-blue-500 animate-spin" style={{ animationDuration: '1.5s' }} />
+        <div className="absolute inset-6 rounded-full border-[6px] border-indigo-400/10 border-b-indigo-400 animate-spin-reverse" style={{ animationDuration: '2s' }} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-5xl font-black text-blue-500 italic animate-pulse drop-shadow-[0_0_20px_rgba(59,130,246,0.5)]">G</span>
+        </div>
+      </div>
+      <div className="space-y-8 max-w-xl">
+        <div className="h-20 flex items-center justify-center">
+          <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter leading-tight animate-message-fade">
+            {messages[messageIndex]}
+          </h2>
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-blue-400 font-black tracking-[0.4em] text-[11px] uppercase animate-pulse">
+            Giteul Intelligence System Upgrading
+          </p>
+          <div className="w-72 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
+            <div className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-400 animate-loading-bar shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticleDetailClient({ id }: { id: string }) {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,14 +74,19 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setShareUrl(window.location.href);
-      const saved = localStorage.getItem('antigravity_bookmarks');
-      if (saved) {
-        try { setBookmarks(JSON.parse(saved)); } catch (e) { }
+      const savedBookmarks = localStorage.getItem('antigravity_bookmarks');
+      if (savedBookmarks) {
+        try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { }
       }
+      const savedEmail = localStorage.getItem('giteul_user_email');
+      if (savedEmail) setIsSubscribed(true);
     }
     async function fetchPostData() {
       if (!id) return;
@@ -89,19 +140,27 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDelete = async () => {
-    if (!confirm('이 기사를 데이터베이스에서 영구 삭제할까요?')) return;
-    const { error } = await supabase.from('posts').delete().eq('id', post.id);
-    if (!error) window.location.href = '/';
-  };
 
   const toggleBookmark = () => {
     if (!post) return;
+    if (!isSubscribed) {
+      setShowEmailModal(true);
+      return;
+    }
     setBookmarks(prev => {
       const next = prev.includes(post.id) ? prev.filter(b => b !== post.id) : [...prev, post.id];
       localStorage.setItem('antigravity_bookmarks', JSON.stringify(next));
       return next;
     });
+  };
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.includes('@')) {
+      localStorage.setItem('giteul_user_email', email);
+      setIsSubscribed(true);
+      setShowEmailModal(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-white flex items-center justify-center font-black animate-pulse text-slate-300 uppercase tracking-widest">Giteul Intelligence...</div>;
@@ -111,26 +170,40 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isStrategyPost = post.title.includes('[전략]');
   const isBookmarked = bookmarks.includes(post.id);
 
-  const getDDay = () => {
-    const isStrategy = post.title.includes('[전략]') || post.category?.toLowerCase() === 'strategy';
-    const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(post.category || '');
-    const isMarket = post.category === '기업/마켓 뉴스';
+    const getDDay = () => {
+      const isStrategy = post.title.includes('[전략]') || post.category?.toLowerCase() === 'strategy';
+      const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(post.category || '');
+      const isMarket = post.category === '기업/마켓 뉴스';
 
-    const getNoDeadlineInfo = () => {
-      if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
-      if (isTech) return { label: 'TECH', color: 'bg-purple-600 text-white', text: '테크 트렌드 리포트' };
-      if (isMarket) return { label: 'MARKET', color: 'bg-teal-600 text-white', text: '기업/마켓 리포트' };
-      if (post.category === '정부지원공고') return { label: 'NOTICE', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
-      return { label: 'NEWS', color: 'bg-slate-400 text-white', text: '최신 뉴스 업데이트' };
-    };
+      // [CRITICAL] D-Day Priority: title에서 날짜 추출 시도 (deadline이 없는 경우 대비)
+      let effectiveDeadline = post.deadline_date;
+      if (!effectiveDeadline && post.title && (post.category === '정부지원공고' || post.category === 'strategy')) {
+        const dateMatch = post.title.match(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/) || 
+                         post.title.match(/(\d{1,2})[.\/-](\d{1,2})/);
+        if (dateMatch) {
+          if (dateMatch[1].length === 4) {
+            effectiveDeadline = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
+          } else {
+            effectiveDeadline = `2026-${dateMatch[1].padStart(2, '0')}-${dateMatch[2].padStart(2, '0')}`;
+          }
+        }
+      }
 
-    if (!post.deadline_date) return getNoDeadlineInfo();
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const deadline = new Date(post.deadline_date);
-    if (isNaN(deadline.getTime())) return getNoDeadlineInfo();
-    deadline.setHours(0, 0, 0, 0);
+      const getNoDeadlineInfo = () => {
+        if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
+        if (isTech) return { label: 'TECH', color: 'bg-purple-600 text-white', text: '테크 트렌드 리포트' };
+        if (isMarket) return { label: 'MARKET', color: 'bg-teal-600 text-white', text: '기업/마켓 리포트' };
+        if (post.category === '정부지원공고') return { label: 'D-상시/확인', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
+        return { label: 'NEWS', color: 'bg-slate-400 text-white', text: '최신 뉴스 업데이트' };
+      };
+
+      if (!effectiveDeadline) return getNoDeadlineInfo();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadline = new Date(effectiveDeadline);
+      if (isNaN(deadline.getTime())) return getNoDeadlineInfo();
+      deadline.setHours(0, 0, 0, 0);
     
     const diff = deadline.getTime() - today.getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -147,6 +220,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
+      {upgrading && <UpgradeLoadingOverlay />}
       <nav className="print:hidden w-full bg-white/80 backdrop-blur-md border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <Link href="/" className="group flex items-center gap-2">
@@ -162,7 +236,6 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               {isBookmarked ? '관심 공고 취소' : '관심 공고 등록'}
             </button>
             <span className="bg-black text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
-            <button onClick={handleDelete} className="text-red-400 font-bold text-xs uppercase tracking-widest opacity-20 hover:opacity-100 transition-opacity">Delete</button>
           </div>
         </div>
       </nav>
@@ -238,93 +311,95 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
       <article className="max-w-3xl mx-auto px-6 pb-60 text-[1.25rem] leading-[1.9] text-slate-600 font-medium">
         <div className="max-w-none article-content">
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeRaw]}
-            components={{
-              h2: ({node, ...props}) => {
-                return (
-                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100" {...props}>
-                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
-                    {props.children}
-                  </h2>
-                );
-              },
-              h3: ({node, ...props}) => {
-                const headerText = Array.isArray(props.children) ? props.children.join('') : String(props.children);
-                const isReporterHeader = headerText.includes('기자의 시선');
-                if (isReporterHeader) {
+          <div className="relative">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+              components={{
+                h2: ({node, ...props}) => {
                   return (
-                    <div className="mt-24 mb-6 flex flex-col gap-2">
-                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs italic border-2 border-blue-500 shadow-lg">G</div>
-                        <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.4em]">Expert Opinion</span>
-                      </div>
-                      <h3 className="text-3xl font-black text-slate-900 tracking-tight" {...props}>
-                        {props.children}
-                      </h3>
-                    </div>
-                  );
-                }
-                return (
-                  <h3 className="text-2xl font-black text-[#002B5B] mt-16 mb-6 flex items-center gap-3" {...props}>
-                    <div className="w-2 h-6 bg-blue-500 rounded-full" />
-                    {props.children}
-                  </h3>
-                );
-              },
-              p: ({node, ...props}) => (
-                <p className="text-[1.15rem] leading-[1.8] text-slate-700 mb-8 font-medium tracking-tight font-sans" {...props} />
-              ),
-              ul: ({node, ...props}) => (
-                <ul className="space-y-4 mb-10 list-none pl-2" {...props} />
-              ),
-              li: ({node, ...props}) => (
-                <li className="flex gap-4 text-[1.2rem] text-slate-700 font-semibold" {...props}>
-                  <span className="text-blue-500 mt-1">✦</span>
-                  <div className="flex-1">{props.children}</div>
-                </li>
-              ),
-              table: ({node, ...props}) => (
-                <div className="my-16 overflow-x-auto rounded-[2rem] border-2 border-slate-50 shadow-2xl bg-white">
-                  <table className="w-full border-collapse" {...props} />
-                </div>
-              ),
-              th: ({node, ...props}) => (
-                <th className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] p-6 text-left" {...props} />
-              ),
-              td: ({node, ...props}) => (
-                <td className="p-6 text-[1.1rem] font-bold text-slate-800 border-b border-slate-50" {...props} />
-              ),
-              blockquote: ({node, ...props}) => (
-                <div className="my-12 p-10 md:p-14 bg-gradient-to-br from-slate-50 to-white rounded-[3.5rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group hover:border-blue-100 transition-all duration-700">
-                  <div className="absolute top-0 left-0 w-2 h-full bg-blue-600" />
-                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative z-10">
-                    <div className="text-[1.2rem] md:text-[1.35rem] leading-[2] text-slate-700 font-bold tracking-tight">
+                    <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100" {...props}>
+                      <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                       {props.children}
+                    </h2>
+                  );
+                },
+                h3: ({node, ...props}) => {
+                  const headerText = Array.isArray(props.children) ? props.children.join('') : String(props.children);
+                  const isReporterHeader = headerText.includes('기자의 시선');
+                  if (isReporterHeader) {
+                    return (
+                      <div className="mt-24 mb-6 flex flex-col gap-2">
+                         <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs italic border-2 border-blue-500 shadow-lg">G</div>
+                          <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.4em]">Expert Opinion</span>
+                        </div>
+                        <h3 className="text-3xl font-black text-slate-900 tracking-tight" {...props}>
+                          {props.children}
+                        </h3>
+                      </div>
+                    );
+                  }
+                  return (
+                    <h3 className="text-2xl font-black text-[#002B5B] mt-16 mb-6 flex items-center gap-3" {...props}>
+                      <div className="w-2 h-6 bg-blue-500 rounded-full" />
+                      {props.children}
+                    </h3>
+                  );
+                },
+                p: ({node, ...props}) => (
+                  <p className="text-[1.15rem] leading-[1.8] text-slate-700 mb-8 font-medium tracking-tight font-sans" {...props} />
+                ),
+                ul: ({node, ...props}) => (
+                  <ul className="space-y-4 mb-10 list-none pl-2" {...props} />
+                ),
+                li: ({node, ...props}) => (
+                  <li className="flex gap-4 text-[1.2rem] text-slate-700 font-semibold" {...props}>
+                    <span className="text-blue-500 mt-1">✦</span>
+                    <div className="flex-1">{props.children}</div>
+                  </li>
+                ),
+                table: ({node, ...props}) => (
+                  <div className="my-16 overflow-x-auto rounded-[2rem] border-2 border-slate-50 shadow-2xl bg-white">
+                    <table className="w-full border-collapse" {...props} />
+                  </div>
+                ),
+                th: ({node, ...props}) => (
+                  <th className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] p-6 text-left" {...props} />
+                ),
+                td: ({node, ...props}) => (
+                  <td className="p-6 text-[1.1rem] font-bold text-slate-800 border-b border-slate-50" {...props} />
+                ),
+                blockquote: ({node, ...props}) => (
+                  <div className="my-12 p-10 md:p-14 bg-gradient-to-br from-slate-50 to-white rounded-[3.5rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group hover:border-blue-100 transition-all duration-700">
+                    <div className="absolute top-0 left-0 w-2 h-full bg-blue-600" />
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative z-10">
+                      <div className="text-[1.2rem] md:text-[1.35rem] leading-[2] text-slate-700 font-bold tracking-tight">
+                        {props.children}
+                      </div>
+                    </div>
+                    <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                          <div className="text-white font-black italic text-sm">G</div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-slate-900 font-black text-sm tracking-tight">안티그래비티 전문위원</span>
+                          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Chief Strategy Reporter</span>
+                        </div>
+                      </div>
+                      <div className="hidden md:block">
+                         <span className="text-slate-100 text-6xl font-black italic select-none">ANALYSIS</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-white shadow-xl flex items-center justify-center overflow-hidden">
-                        <div className="text-white font-black italic text-sm">G</div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-slate-900 font-black text-sm tracking-tight">안티그래비티 전문위원</span>
-                        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Chief Strategy Reporter</span>
-                      </div>
-                    </div>
-                    <div className="hidden md:block">
-                       <span className="text-slate-100 text-6xl font-black italic select-none">ANALYSIS</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            }}
-          >
-            {post.content}
-          </ReactMarkdown>
+                )
+              }}
+            >
+              {post.content}
+            </ReactMarkdown>
+          </div>
         </div>
 
         {isGovSupport && (post.notice_url || post.url) && (
@@ -410,13 +485,61 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </footer>
 
-      {/* Floating Scroll to Top */}
-      <button 
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="print:hidden fixed bottom-10 right-10 w-14 h-14 bg-white shadow-2xl rounded-full border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group z-40"
-      >
-        <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-      </button>
+      {/* Floating Scroll to Top & Subscription FAB */}
+      <div className="print:hidden fixed bottom-10 right-10 flex flex-col gap-4 z-40">
+        {!isSubscribed && (
+          <button 
+            onClick={() => setShowEmailModal(true)}
+            className="w-14 h-14 bg-blue-600 shadow-2xl rounded-2xl flex items-center justify-center text-white hover:bg-blue-500 hover:scale-110 transition-all group relative"
+          >
+            <svg className="w-7 h-7 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            <div className="absolute right-full mr-4 bg-slate-900 text-white px-4 py-2 rounded-xl text-[11px] font-black whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
+              매일 아침 전략 리포트 받기 🚀
+            </div>
+          </button>
+        )}
+        <button 
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="w-14 h-14 bg-white shadow-2xl rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group"
+        >
+          <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+        </button>
+      </div>
+
+      {/* Global Email Subscription Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowEmailModal(false)} />
+           <div className="relative w-full max-w-lg bg-white rounded-[3.5rem] p-12 shadow-2xl animate-scale-in text-center space-y-8">
+              <div className="flex justify-center">
+                 <div className="w-20 h-20 rounded-[2rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black italic shadow-2xl shadow-blue-500/20">G</div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">기틀 지능형 뉴스레터</h3>
+                <p className="text-slate-500 font-medium leading-relaxed">
+                  매일 아침 업데이트되는 핵심 전략 리포트와<br/>관심 공고 관리 기능을 무료로 만나보세요.
+                </p>
+              </div>
+              <form onSubmit={handleSubscribe} className="space-y-4">
+                 <input 
+                  type="email" 
+                  required 
+                  placeholder="이메일 주소 입력" 
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                />
+                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">뉴스레터 무료 구독하기 →</button>
+              </form>
+              <div className="pt-4 border-t border-slate-50">
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Coming Soon: Google One-tap Login</p>
+              </div>
+              <button onClick={() => setShowEmailModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+           </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bounce-subtle {
@@ -428,8 +551,24 @@ export default function ArticleDetailClient({ id }: { id: string }) {
           50% { transform: scale(1.4); }
           100% { transform: scale(1); }
         }
+        @keyframes spin-reverse {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
+        }
+        @keyframes message-fade {
+          0%, 100% { opacity: 0; transform: translateY(10px); }
+          10%, 90% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes loading-bar {
+          0% { width: 0%; transform: translateX(-100%); }
+          50% { width: 70%; transform: translateX(0%); }
+          100% { width: 100%; transform: translateX(100%); }
+        }
         .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
         .animate-heart-pop { animation: heart-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .animate-spin-reverse { animation: spin-reverse linear infinite; }
+        .animate-message-fade { animation: message-fade 3.5s ease-in-out infinite; }
+        .animate-loading-bar { animation: loading-bar 4s ease-in-out infinite; }
 
         .summary-content h3 {
           font-size: 1.5rem;

@@ -1,63 +1,52 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LinkNext from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-// 카테고리별 컬러 시스템
+// 移댄뀒怨좊━蹂?而щ윭 ?쒖뒪??
 const CAT_CONFIG: Record<string, { bg: string; text: string; border: string; label: string; accent: string }> = {
-  '정부지원공고': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STRATEGY', accent: 'bg-blue-600' },
-  'AI/테크 트렌드': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
+  '?뺣?吏?먭났怨?: { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STRATEGY', accent: 'bg-blue-600' },
+  'AI/?뚰겕 ?몃젋??: { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
   'AI/Tech': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
   'ai/tech': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'AI/TECH', accent: 'bg-purple-600' },
-  '기업/마켓 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'MARKET', accent: 'bg-teal-600' },
-  '창업 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STARTUP', accent: 'bg-red-600' },
-  '글로벌 뉴스': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'GLOBAL', accent: 'bg-amber-600' },
+  '湲곗뾽/留덉폆 ?댁뒪': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'MARKET', accent: 'bg-teal-600' },
+  '李쎌뾽 ?댁뒪': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'STARTUP', accent: 'bg-red-600' },
+  '湲濡쒕쾶 ?댁뒪': { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-200', label: 'GLOBAL', accent: 'bg-amber-600' },
 };
 const DEFAULT_CAT = { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', label: 'REPORT' };
 
 const FILTER_KEYWORDS: Record<string, Record<string, string[]>> = {
   stages: {
-    '예비창업': ['예비', '예비창업'],
-    '초기(3년 미만)': ['초기', '3년', '창업초기'],
-    '도약(7년 미만)': ['도약', '7년', '3년 이상', '창업도약'],
-    '성장(7년 이상)': ['성장', '스케일업', '투자'],
+    '?덈퉬李쎌뾽': ['?덈퉬', '?덈퉬李쎌뾽'],
+    '珥덇린(3??誘몃쭔)': ['珥덇린', '3??, '李쎌뾽珥덇린'],
+    '?꾩빟(7??誘몃쭔)': ['?꾩빟', '7??, '3???댁긽', '李쎌뾽?꾩빟'],
+    '?깆옣(7???댁긽)': ['?깆옣', '?ㅼ??쇱뾽', '?ъ옄'],
   },
   benefits: {
-    '자금지원': ['자금', '지원금', '융자', '보증', '투자', '바우처', '상금', '펀드', '지원사업', '창업지원'],
-    'R&D': ['r&d', '기술개발', '연구', '개발비', '기술'],
-    '공간지원': ['공간', '입주', '보육', '오피스', '창업센터', '센터'],
-    '교육·멘토링': ['교육', '멘토링', '컨설팅', '코칭', '네트워킹', '캠프', '세미나', '아카데미'],
-    '수출·마케팅': ['수출', '마케팅', '판로', '전시회', '홍보', '글로벌', '해외'],
+    '?먭툑吏??: ['?먭툑', '吏?먭툑', '?듭옄', '蹂댁쬆', '?ъ옄', '諛붿슦泥?, '?곴툑', '???, '吏?먯궗??, '李쎌뾽吏??],
+    'R&D': ['r&d', '湲곗닠媛쒕컻', '?곌뎄', '媛쒕컻鍮?, '湲곗닠'],
+    '怨듦컙吏??: ['怨듦컙', '?낆＜', '蹂댁쑁', '?ㅽ뵾??, '李쎌뾽?쇳꽣', '?쇳꽣'],
+    '援먯쑁쨌硫섑넗留?: ['援먯쑁', '硫섑넗留?, '而⑥꽕??, '肄붿묶', '?ㅽ듃?뚰궧', '罹좏봽', '?몃???, '?꾩뭅?곕?'],
+    '?섏텧쨌留덉???: ['?섏텧', '留덉???, '?먮줈', '?꾩떆??, '?띾낫', '湲濡쒕쾶', '?댁쇅'],
   }
 };
-const ALL_TIMELINES = ['전체', '진행중', '마감임박', '마감완료'];
-const ALL_STAGES = ['예비창업', '초기창업', '도약창업', '성장창업', '재도전창업'];
-const ALL_BENEFITS = ['사업화', 'R&D', '교육', '네트워킹', '멘토링', '융자', '보증', '투자', '인프라/바우처'];
-const ALL_SECTORS = ['전체', '기술/IT', '제조/하드웨어', '바이오/헬스케어', '에너지/ESG', '문화/콘텐츠', '커머스/서비스', '글로벌/수출', '농업', '소상공인'];
-const ALL_REGIONS = ['전체', '전국', '서울', '경기', '인천', '강원', '충청', '전라', '경상', '제주'];
-const ALL_TARGETS = ['전체', '대학생', '일반인', '외국인', '여성', '장애인', '청년'];
-const ALL_SCALES = ['전체', '개인사업자', '법인사업자', '예비창업자', '중소기업', '중견기업', '대기업'];
-const ALL_OPERATORS = ['전체', '중소벤처기업부', '중기진흥공단', '기보/신보', '창업진흥원', '지자체', '민간기관'];
-const REGION_KEYWORDS: Record<string, string[]> = {
-  '서울': ['서울'],
-  '경기': ['경기'],
-  '인천': ['인천'],
-  '강원': ['강원'],
-  '충청': ['충청', '충북', '충남', '대전', '세종'],
-  '전라': ['전라', '전북', '전남', '광주'],
-  '경상': ['경상', '경북', '경남', '부산', '대구', '울산'],
-  '제주': ['제주'],
-  '전국': ['전국', '중기부', '창진원'],
-};
+const ALL_TIMELINES = ['?꾩껜', '留덇컧 ?꾨컯(D-3)', '30???대궡(D-30)', '?곸떆 紐⑥쭛'];
+const ALL_STAGES = ['?덈퉬李쎌뾽', '珥덇린(3??誘몃쭔)', '?꾩빟(7??誘몃쭔)', '?깆옣(7???댁긽)'];
+const ALL_BENEFITS = ['?먭툑吏??, 'R&D', '怨듦컙吏??, '援먯쑁쨌硫섑넗留?, '?섏텧쨌留덉???];
+const ALL_SECTORS = ['?꾩껜', '湲곗닠/IT', '?쒖“/?섎뱶?⑥뼱', '諛붿씠???ъ뒪耳??, '?먮꼫吏/ESG', '臾명솕/肄섑뀗痢?, '而ㅻ㉧???쒕퉬??, '湲濡쒕쾶/?섏텧', '?띿뾽', '?뚯긽怨듭씤'];
+const ALL_REGIONS = ['?꾩껜', '?꾧뎅', '?쒖슱', '寃쎄린', '?몄쿇', '遺?멸꼍', '?댁쇅'];
+const ALL_TARGETS = ['?꾩껜', '媛쒖씤', '踰뺤씤', '愿怨꾩뾾??];
+const ALL_SCALES = ['?꾩껜', '~1泥쒕쭔??, '~5泥쒕쭔??, '1?듭썝 ?댁긽', '誘몄젙/臾몄쓽'];
+const ALL_OPERATORS = ['?꾩껜', '?뺣?/吏?먯껜', '誘쇨컙/湲고?'];
 const INTEREST_SECTORS_KEY = 'giteul_interest_sectors';
 
-// 주관기관 파싱 헬퍼
+// 二쇨?湲곌? ?뚯떛 ?ы띁
 function parseTitle(title: string) {
   let clean = title
     .replace(/^\[.*?\]\s*/, '')
-    .replace(/^【.*?】\s*/, '')
-    .replace(/D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+/gi, '')
+    .replace(/^??*???s*/, '')
+    .replace(/D-?\d+|D-DAY|留덇컧?쇱옄\s*[\d-.]+|留덇컧\s*[\d-.]+/gi, '')
     .replace(/\s+/g, ' ')
     .trim();
   
@@ -71,21 +60,21 @@ function parseTitle(title: string) {
   const bracketMatch = clean.match(/^(.*?)\((.*?)\)$/);
   if (bracketMatch) return { title: bracketMatch[1].trim(), institution: bracketMatch[2].trim() };
   
-  return { title: clean, institution: '공공기관' };
+  return { title: clean, institution: '怨듦났湲곌?' };
 }
 
 function SectorBadge({ sector }: { sector: string }) {
-  if (!sector || sector === '일반') return null;
+  if (!sector || sector === '?쇰컲') return null;
   const colors: Record<string, string> = {
-    '농업': 'bg-green-50 text-green-700 border-green-200',
-    '기술/IT': 'bg-blue-50 text-blue-700 border-blue-200',
-    '소상공인': 'bg-orange-50 text-orange-700 border-orange-200',
-    '제조/하드웨어': 'bg-slate-100 text-slate-700 border-slate-300',
-    '바이오/헬스케어': 'bg-rose-50 text-rose-700 border-rose-200',
-    '에너지/ESG': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    '문화/콘텐츠': 'bg-purple-50 text-purple-700 border-purple-200',
-    '커머스/서비스': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    '글로벌/수출': 'bg-amber-50 text-amber-700 border-amber-200'
+    '?띿뾽': 'bg-green-50 text-green-700 border-green-200',
+    '湲곗닠/IT': 'bg-blue-50 text-blue-700 border-blue-200',
+    '?뚯긽怨듭씤': 'bg-orange-50 text-orange-700 border-orange-200',
+    '?쒖“/?섎뱶?⑥뼱': 'bg-slate-100 text-slate-700 border-slate-300',
+    '諛붿씠???ъ뒪耳??: 'bg-rose-50 text-rose-700 border-rose-200',
+    '?먮꼫吏/ESG': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    '臾명솕/肄섑뀗痢?: 'bg-purple-50 text-purple-700 border-purple-200',
+    '而ㅻ㉧???쒕퉬??: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    '湲濡쒕쾶/?섏텧': 'bg-amber-50 text-amber-700 border-amber-200'
   };
   const colorClass = colors[sector] || 'bg-slate-50 text-slate-700 border-slate-200';
   return (
@@ -96,13 +85,13 @@ function SectorBadge({ sector }: { sector: string }) {
 }
 
 function DDayBadge({ deadline, category, title, className = "" }: { deadline?: string, category?: string, title?: string, className?: string }) {
-  const isStrategy = title?.startsWith('[전략]') || category?.toLowerCase() === 'strategy';
-  const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(category || '');
-  const isMarket = category === '기업/마켓 뉴스';
+  const isStrategy = title?.startsWith('[?꾨왂]') || category?.toLowerCase() === 'strategy';
+  const isTech = ['tech', 'Tech', 'AI/?뚰겕 ?몃젋??, 'AI/Tech', 'ai/tech'].includes(category || '');
+  const isMarket = category === '湲곗뾽/留덉폆 ?댁뒪';
 
-  // [CRITICAL] D-Day Priority: title 또는 summary에서 날짜 추출 시도 (deadline이 없는 경우 대비)
+  // [CRITICAL] D-Day Priority: title ?먮뒗 summary?먯꽌 ?좎쭨 異붿텧 ?쒕룄 (deadline???녿뒗 寃쎌슦 ?鍮?
   let effectiveDeadline = deadline;
-  if (!effectiveDeadline && (category === '정부지원공고' || category === 'strategy')) {
+  if (!effectiveDeadline && (category === '?뺣?吏?먭났怨? || category === 'strategy')) {
     const textToSearch = `${title || ''} ${className.includes('summary') ? '' : (document.getElementById('article-summary')?.innerText || '')}`; 
     // Note: In client-side rendering, we might not have easy access to summary here if not passed.
     // Let's rely on what's passed.
@@ -122,8 +111,8 @@ function DDayBadge({ deadline, category, title, className = "" }: { deadline?: s
     if (isStrategy) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>STRATEGY</span>;
     if (isTech) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-purple-600 text-white tracking-widest ${className}`}>TECH</span>;
     if (isMarket) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-teal-600 text-white tracking-widest ${className}`}>MARKET</span>;
-    if (category === '창업 뉴스') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-red-600 text-white tracking-widest ${className}`}>STARTUP</span>;
-    if (category === '정부지원공고') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>상시확인</span>;
+    if (category === '李쎌뾽 ?댁뒪') return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-red-600 text-white tracking-widest ${className}`}>STARTUP</span>;
+    if (category === '?뺣?吏?먭났怨?) return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-blue-600 text-white tracking-widest ${className}`}>?곸떆?뺤씤</span>;
     return <span className={`inline-block px-2 py-1 rounded-sm text-[9px] font-black bg-slate-400 text-white tracking-widest ${className}`}>NEWS</span>;
   };
 
@@ -157,8 +146,6 @@ function DDayBadge({ deadline, category, title, className = "" }: { deadline?: s
 
 export default function Home() {
   const [newsItems, setNewsItems] = useState<any[]>([]);
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
   const [loading, setLoading] = useState(true);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
   const [visibleItems, setVisibleItems] = useState(10);
@@ -174,31 +161,23 @@ export default function Home() {
     operator: string;
     articleType: string;
   }>({ 
-    timeline: '전체', 
+    timeline: '?꾩껜', 
     stages: [], 
     benefits: [], 
-    sector: '전체', 
-    region: '전체',
-    target: '전체',
-    scale: '전체',
-    operator: '전체',
-    articleType: '전체'
+    sector: '?꾩껜', 
+    region: '?꾩껜',
+    target: '?꾩껜',
+    scale: '?꾩껜',
+    operator: '?꾩껜',
+    articleType: '?꾩껜'
   });
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
-  const [selectedBenefits, setSelectedBenefits] = useState<string[]>(['strategy', 'newsletter', 'bookmarks']);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'closing' | 'new' | 'interest' | 'favorites'>('all');
   const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-
-  const ALL_SUBSCRIPTION_SECTORS = ['농업', '기술/IT', '소상공인', '문화/관광', '바이오/헬스', '제조/뿌리', '청년/스타트업', '에너지/환경', '수출/해외'];
-  const BENEFIT_LIST = [
-    { id: 'strategy', label: "AI 기반 '합격 전략 리포트' 전체 공개" },
-    { id: 'newsletter', label: "관심분야 맞춤 뉴스레터 발송 (3일 주기)" },
-    { id: 'bookmarks', label: "공고 찜하기 및 관리 기능 활성화" }
-  ];
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -210,20 +189,20 @@ export default function Home() {
 
       const params = new URLSearchParams(window.location.search);
       setFilters({
-        timeline: params.get('timeline') || '전체',
+        timeline: params.get('timeline') || '?꾩껜',
         stages: params.get('stages') ? params.get('stages')!.split(',') : [],
         benefits: params.get('benefits') ? params.get('benefits')!.split(',') : [],
-        sector: params.get('sector') || '전체',
-        region: params.get('region') || '전체',
-        target: params.get('target') || '전체',
-        scale: params.get('scale') || '전체',
-        operator: params.get('operator') || '전체',
-        articleType: params.get('articleType') || '전체'
+        sector: params.get('sector') || '?꾩껜',
+        region: params.get('region') || '?꾩껜',
+        target: params.get('target') || '?꾩껜',
+        scale: params.get('scale') || '?꾩껜',
+        operator: params.get('operator') || '?꾩껜',
+        articleType: params.get('articleType') || '?꾩껜'
       });
       const saved = localStorage.getItem(INTEREST_SECTORS_KEY);
       if (saved) setInterestSectors(JSON.parse(saved));
       else {
-        const defaultInterests = ['농업', '기술/IT', '소상공인'];
+        const defaultInterests = ['?띿뾽', '湲곗닠/IT', '?뚯긽怨듭씤'];
         setInterestSectors(defaultInterests);
         localStorage.setItem(INTEREST_SECTORS_KEY, JSON.stringify(defaultInterests));
       }
@@ -235,7 +214,7 @@ export default function Home() {
       const params = new URLSearchParams();
       Object.entries(newFilters).forEach(([key, val]) => {
         if (Array.isArray(val)) { if (val.length > 0) params.set(key, val.join(',')); }
-        else if (val !== '전체') params.set(key, val as string);
+        else if (val !== '?꾩껜') params.set(key, val as string);
       });
       window.history.pushState(null, '', `?${params.toString()}`);
     }
@@ -260,32 +239,15 @@ export default function Home() {
     });
   };
 
-  const submitEmail = async (e: React.FormEvent) => {
+  const submitEmail = (e: React.FormEvent) => {
     e.preventDefault();
     if (userEmail.includes('@')) {
-      try {
-        // [DB] 구독자 테이블에 이메일과 관심분야 저장
-        const { error } = await supabase
-          .from('subscribers')
-          .upsert({ 
-            email: userEmail, 
-            interests: interestSectors,
-            created_at: new Date().toISOString()
-          }, { onConflict: 'email' });
-
-        if (error) throw error;
-
-        localStorage.setItem('giteul_user_email', userEmail);
-        setIsSubscribed(true);
-        setIsEmailGateOpen(false);
-        if (pendingAction) {
-          pendingAction();
-          setPendingAction(null);
-        }
-        alert('뉴스레터 구독이 완료되었습니다! 🚀');
-      } catch (err: any) {
-        console.error('[Subscription] Failed:', err.message);
-        alert('구독 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      localStorage.setItem('giteul_user_email', userEmail);
+      setIsSubscribed(true);
+      setIsEmailGateOpen(false);
+      if (pendingAction) {
+        pendingAction();
+        setPendingAction(null);
       }
     }
   };
@@ -295,13 +257,16 @@ export default function Home() {
     setFilters(next);
     updateURLFilters(next);
     setVisibleItems(10);
-    // [UX] Viewport 고정: 탭 전환 시 상단으로 부드럽게 이동
+    // [UX] Viewport 怨좎젙: ???꾪솚 ???곷떒?쇰줈 遺?쒕읇寃??대룞
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
   // [Data] Tab-specific Quick Insights
   const closingSoonTop3 = newsItems
-    .filter(i => i.category === '정부지원공고' && i.deadline_date)
+    .filter(i => i.category === '?뺣?吏?먭났怨? && i.deadline_date)
     .filter(i => {
        const d = new Date(i.deadline_date); d.setHours(0,0,0,0);
        return d.getTime() >= todayDate.getTime();
@@ -310,12 +275,8 @@ export default function Home() {
     .slice(0, 3);
 
   const techHeadlines = newsItems
-    .filter(i => ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(i.category))
+    .filter(i => ['tech', 'Tech', 'AI/?뚰겕 ?몃젋??, 'AI/Tech', 'ai/tech'].includes(i.category))
     .slice(0, 3);
-
-  const trendingList = newsItems
-    .filter(i => i.category === '정부지원공고' || i.category?.toLowerCase() === 'strategy')
-    .slice(0, 5);
 
   useEffect(() => {
     const saved = localStorage.getItem('antigravity_bookmarks');
@@ -330,25 +291,22 @@ export default function Home() {
   }, []);
 
   let finalFilteredList = newsItems.filter(item => {
-    if (filters.articleType !== '전체') {
-      if (filters.articleType === '지원공고') {
-        if (!(item.category === '정부지원공고' || item.category?.toLowerCase() === 'strategy')) return false;
-      } else if (filters.articleType === '일반 뉴스') {
-        if (!['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech', '기업/마켓 뉴스', '창업 뉴스'].includes(item.category)) return false;
+    if (filters.articleType !== '?꾩껜') {
+      if (filters.articleType === '吏?먭났怨?) {
+        if (!(item.category === '?뺣?吏?먭났怨? || item.category?.toLowerCase() === 'strategy')) return false;
+      } else if (filters.articleType === '?쇰컲 ?댁뒪') {
+        if (!['tech', 'Tech', 'AI/?뚰겕 ?몃젋??, 'AI/Tech', 'ai/tech', '湲곗뾽/留덉폆 ?댁뒪', '李쎌뾽 ?댁뒪'].includes(item.category)) return false;
       }
     }
-    if (filters.timeline !== '전체' && item.deadline_date) {
+    if (filters.timeline !== '?꾩껜' && item.deadline_date) {
       const dDate = new Date(item.deadline_date); dDate.setHours(0,0,0,0);
       const diff = Math.ceil((dDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (filters.timeline === '마감 임박(D-3)') { if (diff < 0 || diff > 3) return false; }
-      else if (filters.timeline === '30일 이내(D-30)') { if (diff < 0 || diff > 30) return false; }
+      if (filters.timeline === '留덇컧 ?꾨컯(D-3)') { if (diff < 0 || diff > 3) return false; }
+      else if (filters.timeline === '30???대궡(D-30)') { if (diff < 0 || diff > 30) return false; }
     }
     const fullText = (item.title + ' ' + (item.summary || '')).toLowerCase();
-    if (filters.sector !== '전체' && !fullText.includes(filters.sector.toLowerCase())) return false;
-    if (filters.region !== '전체') {
-      const keys = REGION_KEYWORDS[filters.region] || [filters.region];
-      if (!keys.some(k => fullText.includes(k.toLowerCase()))) return false;
-    }
+    if (filters.sector !== '?꾩껜' && !fullText.includes(filters.sector.toLowerCase())) return false;
+    if (filters.region !== '?꾩껜' && !fullText.includes(filters.region.toLowerCase())) return false;
     if (searchQuery.trim() && !item.title.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     return true;
   });
@@ -383,11 +341,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
           <div className="flex items-center gap-10 lg:gap-16">
             <LinkNext href="/" className="group flex items-center gap-2 shrink-0">
-              <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">기틀</span>
+              <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">湲고?</span>
               <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
             </LinkNext>
             <nav className="hidden md:flex items-center gap-8">
-              {[{ id: '전체', label: '전체' }, { id: '지원공고', label: '지원사업' }, { id: '일반 뉴스', label: '뉴스·테크' }].map(tab => (
+              {[{ id: '?꾩껜', label: '?꾩껜' }, { id: '吏?먭났怨?, label: '吏?먯궗?? }, { id: '?쇰컲 ?댁뒪', label: '?댁뒪쨌?뚰겕' }].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => handleArticleTypeChange(tab.id)}
@@ -403,7 +361,7 @@ export default function Home() {
              <div className="relative w-full hidden lg:block">
                 <input 
                   type="text" 
-                  placeholder="지능형 검색..." 
+                  placeholder="吏?ν삎 寃??.." 
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-2.5 text-xs font-bold focus:outline-none focus:border-blue-600 focus:bg-white transition-all pr-12 shadow-sm" 
                   value={searchQuery} 
                   onChange={(e) => {setSearchQuery(e.target.value); setVisibleItems(10);}} 
@@ -418,121 +376,17 @@ export default function Home() {
           </div>
         </div>
       </header>
-      
-      {/* Top Filter Overlay */}
-      {showFilters && (
-        <div className="bg-white border-b border-slate-200 shadow-2xl animate-slide-in-top sticky top-20 z-40 overflow-y-auto max-h-[80vh]">
-          <div className="max-w-7xl mx-auto px-6 py-12">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10">
-              {/* Timeline */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">타임라인</p>
-                <div className="flex flex-col gap-2">
-                  {ALL_TIMELINES.map(t => (
-                    <button key={t} onClick={() => { setFilters({...filters, timeline: t}); setVisibleItems(10); }} className={`text-left text-[13px] font-bold transition-colors ${filters.timeline === t ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}>{t}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stage */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">창업 단계</p>
-                <div className="flex flex-col gap-2">
-                  {ALL_STAGES.map(s => (
-                    <button 
-                      key={s} 
-                      onClick={() => { 
-                        const stages = filters.stages.includes(s) ? filters.stages.filter(i => i !== s) : [...filters.stages, s];
-                        setFilters({...filters, stages}); setVisibleItems(10); 
-                      }} 
-                      className={`text-left text-[13px] font-bold transition-colors ${filters.stages.includes(s) ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Benefit */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">지원 혜택</p>
-                <div className="flex flex-col gap-2">
-                  {ALL_BENEFITS.map(b => (
-                    <button 
-                      key={b} 
-                      onClick={() => { 
-                        const benefits = filters.benefits.includes(b) ? filters.benefits.filter(i => i !== b) : [...filters.benefits, b];
-                        setFilters({...filters, benefits}); setVisibleItems(10); 
-                      }} 
-                      className={`text-left text-[13px] font-bold transition-colors ${filters.benefits.includes(b) ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sector */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">분야</p>
-                <div className="flex flex-col gap-2">
-                  {ALL_SECTORS.map(s => (
-                    <button key={s} onClick={() => { setFilters({...filters, sector: s}); setVisibleItems(10); }} className={`text-left text-[13px] font-bold transition-colors ${filters.sector === s ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}>{s}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Region */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">지역</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  {ALL_REGIONS.map(r => (
-                    <button key={r} onClick={() => { setFilters({...filters, region: r}); setVisibleItems(10); }} className={`text-left text-[11px] font-bold transition-colors ${filters.region === r ? 'text-blue-600 font-black' : 'text-slate-500 hover:text-slate-900'}`}>{r}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-12 pt-8 border-t border-slate-100 flex items-center justify-between">
-               <div className="flex gap-8">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">대상</p>
-                    <select value={filters.target} onChange={(e) => setFilters({...filters, target: e.target.value})} className="bg-slate-50 border-none rounded-lg px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-600 outline-none">
-                      {ALL_TARGETS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">기업규모</p>
-                    <select value={filters.scale} onChange={(e) => setFilters({...filters, scale: e.target.value})} className="bg-slate-50 border-none rounded-lg px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-600 outline-none">
-                      {ALL_SCALES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">주관기관</p>
-                    <select value={filters.operator} onChange={(e) => setFilters({...filters, operator: e.target.value})} className="bg-slate-50 border-none rounded-lg px-4 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-600 outline-none">
-                      {ALL_OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-               </div>
-               <div className="flex gap-4">
-                  <button onClick={() => { setFilters({timeline:'전체',stages:[],benefits:[],sector:'전체',region:'전체',target:'전체',scale:'전체',operator:'전체',articleType:'전체'}); setVisibleItems(10); }} className="px-6 py-3 rounded-xl text-slate-400 font-black text-[11px] uppercase hover:bg-slate-50 transition-all">필터 초기화</button>
-                  <button onClick={() => setShowFilters(false)} className="px-8 py-3 bg-slate-900 text-white rounded-xl font-black text-[11px] uppercase shadow-xl hover:bg-slate-800 transition-all">필터 적용하기</button>
-               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* [UX] Auto-Collapse: '전체' 탭일 때만 메인 배너와 전략 매거진 노출 */}
-        {filters.articleType === '전체' && (
+        {/* [UX] Auto-Collapse: '?꾩껜' ??씪 ?뚮쭔 硫붿씤 諛곕꼫? ?꾨왂 留ㅺ굅吏??몄텧 */}
+        {filters.articleType === '?꾩껜' && (
           <>
             <section className="grid grid-cols-1 lg:grid-cols-10 gap-8 mb-16 animate-scale-in">
               <div className="lg:col-span-7 bg-white rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-900/5 border border-gray-100 group">
                  <LinkNext href={`/article/${newsItems[0]?.id || '#'}`}>
                     <div className="aspect-[16/9] overflow-hidden bg-slate-100">
                       <img 
-                        src={newsItems[0]?.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'} 
+                        src={newsItems[0]?.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
                         alt="Hero" 
                         referrerPolicy="no-referrer"
@@ -540,18 +394,18 @@ export default function Home() {
                     </div>
                     <div className="p-10">
                       <DDayBadge deadline={newsItems[0]?.deadline_date} category={newsItems[0]?.category} title={newsItems[0]?.title} className="mb-4" />
-                      <h2 className="text-3xl font-black text-slate-900 mb-4 line-clamp-1">{newsItems[0]?.title ? parseTitle(newsItems[0].title).title : '로딩 중...'}</h2>
+                      <h2 className="text-3xl font-black text-slate-900 mb-4 line-clamp-1">{newsItems[0]?.title ? parseTitle(newsItems[0].title).title : '濡쒕뵫 以?..'}</h2>
                       <p className="text-slate-500 font-medium line-clamp-2 leading-relaxed">{newsItems[0]?.summary?.replace(/<[^>]*>/g, '')}</p>
                     </div>
                  </LinkNext>
               </div>
               <div className="lg:col-span-3">
                  <div className="flex items-center justify-between mb-8 border-b-4 border-slate-900 pb-3">
-                    <h3 className="font-black text-xl text-slate-900 tracking-tight">지금 뜨는 소식</h3>
+                    <h3 className="font-black text-xl text-slate-900 tracking-tight">吏湲??⑤뒗 ?뚯떇</h3>
                     <span className="text-[10px] font-black bg-blue-600 text-white px-2 py-0.5 rounded italic animate-pulse">LIVE</span>
                  </div>
                  <div className="space-y-8">
-                    {trendingList.map((item, idx) => (
+                    {newsItems.slice(1, 6).map((item, idx) => (
                       <LinkNext key={item.id} href={`/article/${item.id}`} className="group relative flex gap-5 items-start">
                         <div className="flex-shrink-0 relative">
                            <span className="text-4xl font-black text-slate-200 group-hover:text-slate-900 transition-colors leading-none tracking-tighter italic">
@@ -578,13 +432,13 @@ export default function Home() {
           </>
         )}
 
-        {/* [UX] Tab-specific 'Quick Section' 배치 */}
-        {filters.articleType === '지원공고' && (
+        {/* [UX] Tab-specific 'Quick Section' 諛곗튂 */}
+        {filters.articleType === '吏?먭났怨? && (
           <section className="mb-12 animate-slide-in-right bg-emerald-50 rounded-[2.5rem] p-10 text-emerald-900 shadow-2xl shadow-emerald-100">
              <div className="flex items-center justify-between mb-8">
                 <div>
-                   <h3 className="text-2xl font-black tracking-tighter mb-2">마감 임박 공고 TOP 3</h3>
-                   <p className="text-emerald-500 text-sm font-bold opacity-80 uppercase tracking-widest">실시간 기한 분석 시스템 가동 중</p>
+                   <h3 className="text-2xl font-black tracking-tighter mb-2">留덇컧 ?꾨컯 怨듦퀬 TOP 3</h3>
+                   <p className="text-emerald-500 text-sm font-bold opacity-80 uppercase tracking-widest">?ㅼ떆媛?湲고븳 遺꾩꽍 ?쒖뒪??媛??以?/p>
                 </div>
                 <div className="w-12 h-12 bg-emerald-200/50 rounded-full flex items-center justify-center animate-pulse">
                    <div className="w-4 h-4 bg-emerald-500 rounded-full" />
@@ -604,11 +458,11 @@ export default function Home() {
           </section>
         )}
 
-        {filters.articleType === '일반 뉴스' && (
+        {filters.articleType === '?쇰컲 ?댁뒪' && (
           <section className="mb-12 animate-slide-in-right bg-purple-50 rounded-[2.5rem] p-10 text-purple-900 shadow-2xl shadow-purple-100">
              <div className="flex items-center justify-between mb-8">
                 <div>
-                   <h3 className="text-2xl font-black tracking-tighter mb-2">오늘의 테크 헤드라인</h3>
+                   <h3 className="text-2xl font-black tracking-tighter mb-2">?ㅻ뒛???뚰겕 ?ㅻ뱶?쇱씤</h3>
                    <p className="text-purple-400 text-sm font-bold opacity-80 uppercase tracking-widest">Global AI & Tech Intelligence Hub</p>
                 </div>
                 <svg className="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
@@ -629,7 +483,7 @@ export default function Home() {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 py-6 border-y border-slate-100">
           <div className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-2xl">
-            {[{ id: 'all', label: '전체' }, { id: 'new', label: '오늘 등록' }, { id: 'closing', label: '마감 임박' }, { id: 'interest', label: '관심 분야' }, { id: 'favorites', label: '찜하기' }].map(tab => (
+            {[{ id: 'all', label: '?꾩껜' }, { id: 'new', label: '?ㅻ뒛 ?깅줉' }, { id: 'closing', label: '留덇컧 ?꾨컯' }, { id: 'interest', label: '愿??遺꾩빞' }, { id: 'favorites', label: '李쒗븯湲? }].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id as any); setVisibleItems(10); }}
@@ -639,6 +493,9 @@ export default function Home() {
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-4">
+             <button onClick={() => setShowFilters(!showFilters)} className={`px-6 py-2.5 rounded-xl font-black text-[11px] tracking-widest transition-all ${showFilters ? 'bg-slate-900 text-white' : 'bg-blue-600 text-white'}`}>?곸꽭 ?꾪꽣</button>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-12">
@@ -646,21 +503,33 @@ export default function Home() {
             {loading ? (
               <div className="py-32 flex flex-col items-center gap-6">
                 <div className="w-12 h-12 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
-                <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">인텔리전스 로드 중...</p>
+                <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">?명뀛由ъ쟾??濡쒕뱶 以?..</p>
               </div>
             ) : infinityList.length === 0 ? (
-              <div className="py-32 text-center text-slate-300 font-black">데이터가 없습니다</div>
+              <div className="py-32 text-center text-slate-300 font-black">?곗씠?곌? ?놁뒿?덈떎</div>
             ) : (
               <div className="flex flex-col gap-[1px] bg-slate-100 border border-slate-100 rounded-[2rem] overflow-hidden shadow-lg">
                 {infinityList.map((item) => {
                   const { title, institution } = parseTitle(item.title);
+                  const isBookmarked = bookmarks.includes(item.id);
                   const isExpired = item.deadline_date && new Date(item.deadline_date).setHours(0,0,0,0) < todayDate.getTime();
                   return (
                     <div key={item.id} className={`group bg-white p-6 lg:p-8 transition-all hover:bg-slate-50 flex flex-col md:flex-row items-center gap-6 lg:gap-10 ${isExpired ? 'grayscale opacity-60' : ''}`}>
                        <div className="flex md:flex-col justify-between md:justify-start items-center md:items-start gap-4 w-full md:w-32 shrink-0">
                           <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} />
+                          <button onClick={() => toggleBookmark(item.id)} className={`p-2.5 rounded-full border ${isBookmarked ? 'bg-red-50 text-red-500 border-red-100' : 'bg-slate-50 text-slate-300'}`}>
+                             <svg className={`w-5 h-5 ${isBookmarked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                          </button>
                        </div>
                        
+                       <LinkNext href={`/article/${item.id}`} className="w-full md:w-48 lg:w-56 aspect-[16/10] overflow-hidden rounded-2xl bg-slate-50 shrink-0 border border-slate-100">
+                          <img 
+                            src={item.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                            alt={title}
+                            referrerPolicy="no-referrer"
+                          />
+                       </LinkNext>
 
                        <LinkNext href={`/article/${item.id}`} className="flex-1 min-w-0 w-full space-y-3">
                           <div className="flex items-center gap-2">
@@ -682,11 +551,35 @@ export default function Home() {
             )}
             {finalItems.length > visibleItems && (
               <div className="mt-16 text-center">
-                <button onClick={() => setVisibleItems(prev => prev + 10)} className="px-12 py-6 bg-white border-2 border-slate-900 rounded-2xl font-black text-[14px] hover:bg-slate-900 hover:text-white transition-all">최신 소식 더보기 +</button>
+                <button onClick={() => setVisibleItems(prev => prev + 10)} className="px-12 py-6 bg-white border-2 border-slate-900 rounded-2xl font-black text-[14px] hover:bg-slate-900 hover:text-white transition-all">理쒖떊 ?뚯떇 ?붾낫湲?+</button>
               </div>
             )}
           </div>
 
+          {showFilters && (
+            <aside className="lg:w-80 shrink-0 animate-slide-in-right">
+               <div className="sticky top-28 bg-white border-2 border-slate-900 rounded-[2.5rem] p-8 shadow-2xl space-y-8">
+                  <h5 className="text-[11px] font-black uppercase border-b-2 border-slate-900 pb-2 w-fit">?곸꽭 ?꾪꽣</h5>
+                  <div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase mb-4">??꾨씪??/p>
+                     <div className="flex flex-col gap-2">
+                        {ALL_TIMELINES.map(t => (
+                          <button key={t} onClick={() => { setFilters({...filters, timeline: t}); setVisibleItems(10); }} className={`text-left text-[13px] font-bold ${filters.timeline === t ? 'text-blue-600 font-black' : 'text-slate-500'}`}>{t}</button>
+                        ))}
+                     </div>
+                  </div>
+                  <div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase mb-4">吏??/p>
+                     <div className="flex flex-wrap gap-1.5">
+                        {ALL_REGIONS.map(r => (
+                          <button key={r} onClick={() => { setFilters({...filters, region: r}); setVisibleItems(10); }} className={`px-2.5 py-1 rounded-md text-[11px] font-black border ${filters.region === r ? 'bg-blue-600 text-white' : 'text-slate-500 border-slate-200'}`}>{r}</button>
+                        ))}
+                     </div>
+                  </div>
+                  <button onClick={() => { setFilters({timeline:'?꾩껜',stages:[],benefits:[],sector:'?꾩껜',region:'?꾩껜',target:'?꾩껜',scale:'?꾩껜',operator:'?꾩껜',articleType:'?꾩껜'}); setVisibleItems(10); }} className="w-full bg-slate-900 text-white py-4 rounded-xl text-[10px] font-black uppercase">?꾪꽣 珥덇린??/button>
+               </div>
+            </aside>
+          )}
         </div>
       </main>
 
@@ -699,7 +592,7 @@ export default function Home() {
           >
             <svg className="w-8 h-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
             <div className="absolute right-full mr-4 bg-slate-900 text-white px-5 py-3 rounded-2xl text-[12px] font-black whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-2xl border border-white/10">
-              구독하고 '합격 전략' 뉴스레터 받기 🚀
+              援щ룆?섍퀬 '?⑷꺽 ?꾨왂' ?댁뒪?덊꽣 諛쏄린 ??
             </div>
           </button>
         </div>
@@ -713,65 +606,21 @@ export default function Home() {
                  <div className="w-20 h-20 rounded-[2rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black italic shadow-2xl shadow-blue-500/20">G</div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">기틀 지능형 뉴스레터</h3>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">湲고? 吏?ν삎 ?댁뒪?덊꽣</h3>
                 <p className="text-slate-500 font-medium leading-relaxed">
-                  구독 한 번으로 프리미엄 비즈니스 인사이트를<br/>매일 아침 무료로 받아보세요.
+                  留ㅼ씪 ?꾩묠 ?낅뜲?댄듃?섎뒗 ?듭떖 ?꾨왂 由ы룷?몄?<br/>愿??怨듦퀬 愿由?湲곕뒫??臾대즺濡?留뚮굹蹂댁꽭??
                 </p>
               </div>
-
-              <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이용하실 혜택 선택</p>
-                 {BENEFIT_LIST.map((benefit) => {
-                   const isSelected = selectedBenefits.includes(benefit.id);
-                   return (
-                     <button 
-                       key={benefit.id}
-                       onClick={() => {
-                         setSelectedBenefits(prev => 
-                           prev.includes(benefit.id) ? prev.filter(b => b !== benefit.id) : [...prev, benefit.id]
-                         );
-                       }}
-                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 ${isSelected ? 'bg-white border-blue-600 shadow-md' : 'bg-transparent border-transparent opacity-60'}`}
-                     >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                           {isSelected ? '✓' : ''}
-                        </div>
-                        <p className={`text-[13.5px] font-black tracking-tight ${isSelected ? 'text-slate-900' : 'text-slate-400'}`}>{benefit.label}</p>
-                     </button>
-                   );
-                 })}
-              </div>
-
-              <div className="space-y-5">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 분야 선택 (중복 가능)</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {ALL_SUBSCRIPTION_SECTORS.map(sector => (
-                    <button 
-                      key={sector}
-                      type="button"
-                      onClick={() => {
-                        setInterestSectors(prev => 
-                          prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
-                        );
-                      }}
-                      className={`px-2 py-3 rounded-xl text-[11px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
-                    >
-                      {sector}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <form onSubmit={submitEmail} className="mt-10 space-y-4">
                  <input 
                   type="email" 
                   required 
-                  placeholder="뉴스레터를 받을 이메일 주소" 
+                  placeholder="?대찓??二쇱냼 ?낅젰" 
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all shadow-sm" 
                   value={userEmail} 
                   onChange={(e) => setUserEmail(e.target.value)} 
                 />
-                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">프리미엄 혜택 시작하기 →</button>
+                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">?댁뒪?덊꽣 臾대즺 援щ룆?섍린 ??/button>
               </form>
               <div className="pt-4 border-t border-slate-50">
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Coming Soon: Google One-tap Login</p>
@@ -785,8 +634,8 @@ export default function Home() {
 
       <footer className="bg-white py-24 mt-24 border-t-2 border-slate-100 text-center">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-6">
-          <span className="text-3xl font-black text-slate-900">기틀<span className="text-blue-600">.</span></span>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.4em]">© 2026 Giteul AI Media Portal. All rights reserved.</p>
+          <span className="text-3xl font-black text-slate-900">湲고?<span className="text-blue-600">.</span></span>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.4em]">짤 2026 Giteul AI Media Portal. All rights reserved.</p>
         </div>
       </footer>
       

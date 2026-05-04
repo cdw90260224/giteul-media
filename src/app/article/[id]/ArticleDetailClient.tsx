@@ -77,6 +77,15 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [email, setEmail] = useState('');
+  const [interestSectors, setInterestSectors] = useState<string[]>([]);
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>(['strategy', 'newsletter', 'bookmarks']);
+
+  const ALL_SUBSCRIPTION_SECTORS = ['농업', '기술/IT', '소상공인', '문화/관광', '바이오/헬스', '제조/뿌리', '청년/스타트업', '에너지/환경', '수출/해외'];
+  const BENEFIT_LIST = [
+    { id: 'strategy', label: "AI 기반 '합격 전략 리포트' 전체 공개" },
+    { id: 'newsletter', label: "관심분야 맞춤 뉴스레터 발송 (3일 주기)" },
+    { id: 'bookmarks', label: "공고 찜하기 및 관리 기능 활성화" }
+  ];
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -154,12 +163,26 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     });
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email.includes('@')) {
-      localStorage.setItem('giteul_user_email', email);
-      setIsSubscribed(true);
-      setShowEmailModal(false);
+      try {
+        const { error } = await supabase
+          .from('subscribers')
+          .upsert({ 
+            email, 
+            interests: interestSectors,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'email' });
+
+        if (error) throw error;
+        localStorage.setItem('giteul_user_email', email);
+        setIsSubscribed(true);
+        setShowEmailModal(false);
+        alert('뉴스레터 구독이 완료되었습니다! 🚀');
+      } catch (err: any) {
+        alert('구독 중 오류가 발생했습니다.');
+      }
     }
   };
 
@@ -514,22 +537,66 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               <div className="flex justify-center">
                  <div className="w-20 h-20 rounded-[2rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black italic shadow-2xl shadow-blue-500/20">G</div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <h3 className="text-3xl font-black text-slate-900 tracking-tighter">기틀 지능형 뉴스레터</h3>
                 <p className="text-slate-500 font-medium leading-relaxed">
-                  매일 아침 업데이트되는 핵심 전략 리포트와<br/>관심 공고 관리 기능을 무료로 만나보세요.
+                  구독 한 번으로 프리미엄 비즈니스 인사이트를<br/>매일 아침 무료로 받아보세요.
                 </p>
               </div>
+
+              <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이용하실 혜택 선택</p>
+                 {BENEFIT_LIST.map((benefit) => {
+                   const isSelected = selectedBenefits.includes(benefit.id);
+                   return (
+                     <button 
+                       key={benefit.id}
+                       onClick={() => {
+                         setSelectedBenefits(prev => 
+                           prev.includes(benefit.id) ? prev.filter(b => b !== benefit.id) : [...prev, benefit.id]
+                         );
+                       }}
+                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 ${isSelected ? 'bg-white border-blue-600 shadow-md' : 'bg-transparent border-transparent opacity-60'}`}
+                     >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                           {isSelected ? '✓' : ''}
+                        </div>
+                        <p className={`text-[13.5px] font-black tracking-tight ${isSelected ? 'text-slate-900' : 'text-slate-400'}`}>{benefit.label}</p>
+                     </button>
+                   );
+                 })}
+              </div>
+
+              <div className="space-y-5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 분야 선택 (중복 가능)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {ALL_SUBSCRIPTION_SECTORS.map(sector => (
+                    <button 
+                      key={sector}
+                      type="button"
+                      onClick={() => {
+                        setInterestSectors(prev => 
+                          prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
+                        );
+                      }}
+                      className={`px-2 py-3 rounded-xl text-[11px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                    >
+                      {sector}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <form onSubmit={handleSubscribe} className="space-y-4">
                  <input 
                   type="email" 
                   required 
-                  placeholder="이메일 주소 입력" 
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all" 
+                  placeholder="뉴스레터를 받을 이메일 주소" 
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all shadow-sm" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                 />
-                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">뉴스레터 무료 구독하기 →</button>
+                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">프리미엄 혜택 시작하기 →</button>
               </form>
               <div className="pt-4 border-t border-slate-50">
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Coming Soon: Google One-tap Login</p>

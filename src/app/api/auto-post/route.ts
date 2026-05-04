@@ -116,14 +116,14 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const prompt = `당신은 대한민국 기업 지원사업 전문 큐레이터입니다. 
             [영구 지침]
             1. 현재 연도는 2026년입니다. 모든 날짜 판단의 기준은 2026년입니다.
-            2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 원문에서 추출된 마감일 [${item.rawDate || '알 수 없음'}] 이 있다면 반드시 사수하세요.
+            2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 원문에서 '접수기간', '신청기간', '마감일' 등을 찾아 정확한 YYYY-MM-DD 날짜를 추출하세요. 추출된 마감일 [${item.rawDate || '알 수 없음'}] 이 있다면 반드시 사수하세요. 귀찮아서 '상시 접수'라고 쓰는 것을 엄격히 금지합니다.
             3. 초기 크롤링 단계에서는 '상세 전략 리포트'나 '기자의 시선'을 절대 작성하지 마세요. (사용자 요청 시 별도 생성 예정)
             4. 카테고리는 반드시 '정부지원공고'로 설정하세요. 
 
             제공된 원문에서 핵심 정보만 추출하여 간결한 요약 보고서를 작성하세요.
 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
-            JSON 구조: { "title": "공고명을 깔끔하게 정제한 제목", "summary": "3줄 이내의 간결한 요약", "category": "정부지원공고", "content": "마크다운 형식의 기본 공고 정보 (지원대상, 혜택, 일정)", "deadline": "YYYY-MM-DD 또는 상시 접수", "sector": "${sector}", "image_keyword": "business" }
+            JSON 구조: { "title": "공고명을 깔끔하게 정제한 제목", "summary": "3줄 이내의 간결한 요약", "category": "정부지원공고", "content": "마크다운 형식의 기본 공고 정보 (지원대상, 혜택, 일정)", "deadline": "YYYY-MM-DD (날짜를 찾을 수 없는 경우에만 null)", "sector": "${sector}", "image_keyword": "business" }
 
             입력 원천 데이터: ${item.title}
             공고URL: ${item.url}`;
@@ -150,9 +150,15 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
             
-            // 키워드 기반의 고해상도 Unsplash 이미지 매칭 (랜덤성 부여)
-            const seed = Math.floor(Math.random() * 1000);
-            const imageUrl = `https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop&sig=${seed}&${raw.image_keyword || 'business'}`;
+            const imageIds = [
+              '1519389403731-ca2119f28eb1', '1497366216548-37526070297c', '1542744173-8e7e5141b2b1', '1460925895917-afdab827c52f', 
+              '1454165833222-d29f404f3db2', '1556761175-b413da4baf72', '1522071823991-b96c0d3e174b', '1557804506-669a67965ba0', 
+              '1551434678-e076c223a692', '1504384308090-c894fdcc538d', '1552664730-d307ca884978', '1531482615713-2afd69097998',
+              '1559136555-9303baea8ebd', '1517048676732-d65bc937f952', '1516321318423-f06f85e504b3', '1521791136064-7986c2920216',
+              '1517245326844-010dffc1096e', '1541746972996-4e0b0f43e02a', '1486406146926-c627a92ad1ab', '1450101496173-eb415183c382'
+            ];
+            const randomImgId = imageIds[Math.floor(Math.random() * imageIds.length)];
+            const imageUrl = `https://images.unsplash.com/photo-${randomImgId}?q=80&w=1000&auto=format&fit=crop`;
 
             // 기존 데이터가 있으면 Update(Upsert), 없으면 Insert
             const postData = {
@@ -272,12 +278,24 @@ export async function GET(request: Request) {
       
       console.log(`[Background Cron] Starting at ${new Date().toISOString()}`);
 
-      // 1. 정부지원공고 K-Startup 당일 전체 수집 전용 가동 (-1)
+      // 1. 정부지원공고 K-Startup 당일 전체 수집 전용 가동 (-1) - 매일 수행
       const { sendNotification, formatBatchResult } = await import('@/lib/notifier');
-      
       const govResults = await publishByCategory('정부지원공고', -1);
 
-      const allResults = [...govResults];
+      // 2. 테크 및 글로벌 뉴스 수집 (사용자 요청에 따라 3일에 한 번 수행)
+      let newsResults: any[] = [];
+      const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+      
+      if (dayOfYear % 3 === 0) {
+        console.log('[Background Cron] 3-day cycle matched. Fetching Tech and Global news...');
+        const techResults = await publishByCategory('AI/테크 트렌드', 5);
+        const globalResults = await publishByCategory('글로벌 뉴스', 3);
+        newsResults = [...techResults, ...globalResults];
+      } else {
+        console.log('[Background Cron] Not a news fetch day (3-day cycle). Skipping Tech/Global news.');
+      }
+
+      const allResults = [...govResults, ...newsResults];
       const summary = formatBatchResult(allResults);
       await sendNotification(summary);
 

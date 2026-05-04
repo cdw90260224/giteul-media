@@ -172,12 +172,20 @@ export default function Home() {
     articleType: '전체'
   });
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>(['strategy', 'newsletter', 'bookmarks']);
   const [showFilters, setShowFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'closing' | 'new' | 'interest' | 'favorites'>('all');
   const [isEmailGateOpen, setIsEmailGateOpen] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
+  const ALL_SUBSCRIPTION_SECTORS = ['농업', '기술/IT', '소상공인', '문화/관광', '바이오/헬스', '제조/뿌리', '청년/스타트업', '에너지/환경', '수출/해외'];
+  const BENEFIT_LIST = [
+    { id: 'strategy', label: "AI 기반 '합격 전략 리포트' 전체 공개" },
+    { id: 'newsletter', label: "관심분야 맞춤 뉴스레터 발송 (3일 주기)" },
+    { id: 'bookmarks', label: "공고 찜하기 및 관리 기능 활성화" }
+  ];
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -239,15 +247,32 @@ export default function Home() {
     });
   };
 
-  const submitEmail = (e: React.FormEvent) => {
+  const submitEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (userEmail.includes('@')) {
-      localStorage.setItem('giteul_user_email', userEmail);
-      setIsSubscribed(true);
-      setIsEmailGateOpen(false);
-      if (pendingAction) {
-        pendingAction();
-        setPendingAction(null);
+      try {
+        // [DB] 구독자 테이블에 이메일과 관심분야 저장
+        const { error } = await supabase
+          .from('subscribers')
+          .upsert({ 
+            email: userEmail, 
+            interests: interestSectors,
+            created_at: new Date().toISOString()
+          }, { onConflict: 'email' });
+
+        if (error) throw error;
+
+        localStorage.setItem('giteul_user_email', userEmail);
+        setIsSubscribed(true);
+        setIsEmailGateOpen(false);
+        if (pendingAction) {
+          pendingAction();
+          setPendingAction(null);
+        }
+        alert('뉴스레터 구독이 완료되었습니다! 🚀');
+      } catch (err: any) {
+        console.error('[Subscription] Failed:', err.message);
+        alert('구독 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       }
     }
   };
@@ -334,7 +359,6 @@ export default function Home() {
   });
 
   const infinityList = finalItems.slice(0, visibleItems);
-  const magazineList = newsItems.filter(i => i.title.startsWith('[전략]') || i.category === '정부지원공고').slice(0, 4);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] font-sans text-slate-900">
@@ -386,7 +410,12 @@ export default function Home() {
               <div className="lg:col-span-7 bg-white rounded-[2.5rem] overflow-hidden shadow-2xl shadow-blue-900/5 border border-gray-100 group">
                  <LinkNext href={`/article/${newsItems[0]?.id || '#'}`}>
                     <div className="aspect-[16/9] overflow-hidden bg-slate-100">
-                      <img src={newsItems[0]?.image_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" alt="Hero" />
+                      <img 
+                        src={newsItems[0]?.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
+                        alt="Hero" 
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                     <div className="p-10">
                       <DDayBadge deadline={newsItems[0]?.deadline_date} category={newsItems[0]?.category} title={newsItems[0]?.title} className="mb-4" />
@@ -424,29 +453,7 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="mb-20 animate-scale-in">
-              <div className="flex items-center gap-3 mb-10">
-                 <div className="w-2 h-8 bg-blue-600 rounded-full" />
-                 <h3 className="text-3xl font-black text-slate-900 tracking-tighter">실시간 전략 매거진</h3>
-              </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {magazineList.map((item, idx) => (
-                  <LinkNext key={item.id} href={`/article/${item.id}`} className="group relative bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 transition-all hover:-translate-y-2 hover:shadow-2xl flex flex-col overflow-hidden">
-                    <div className="absolute -top-4 -right-4 text-6xl font-black text-slate-100 italic opacity-80 group-hover:text-slate-900 transition-colors pointer-events-none">
-                      {(idx + 1).toString().padStart(2, '0')}
-                    </div>
-                    <div className="aspect-[3/2] bg-slate-50 rounded-2xl mb-6 overflow-hidden">
-                      <img src={item.image_url || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop'} alt="Thumb" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    </div>
-                    <h4 className="text-[17px] font-black text-slate-900 line-clamp-2 leading-snug mb-4 group-hover:text-blue-600 transition-colors tracking-tight">{parseTitle(item.title).title}</h4>
-                    <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-50">
-                      <span className="text-[10px] font-black text-blue-600/50 uppercase tracking-widest italic">Strategic Insights</span>
-                      <span className="text-[11px] font-black text-slate-300">{new Date(item.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</span>
-                    </div>
-                  </LinkNext>
-                ))}
-              </div>
-            </section>
+
           </>
         )}
 
@@ -518,7 +525,14 @@ export default function Home() {
 
         <div className="flex flex-col lg:flex-row gap-12">
           <div className="flex-1">
-            {infinityList.length === 0 ? <div className="py-32 text-center text-slate-300 font-black">데이터가 없습니다</div> : (
+            {loading ? (
+              <div className="py-32 flex flex-col items-center gap-6">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-blue-600 rounded-full animate-spin" />
+                <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">인텔리전스 로드 중...</p>
+              </div>
+            ) : infinityList.length === 0 ? (
+              <div className="py-32 text-center text-slate-300 font-black">데이터가 없습니다</div>
+            ) : (
               <div className="flex flex-col gap-[1px] bg-slate-100 border border-slate-100 rounded-[2rem] overflow-hidden shadow-lg">
                 {infinityList.map((item) => {
                   const { title, institution } = parseTitle(item.title);
@@ -532,12 +546,14 @@ export default function Home() {
                              <svg className={`w-5 h-5 ${isBookmarked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                           </button>
                        </div>
-                       <LinkNext href={`/article/${item.id}`} className="flex-1 min-w-0 w-full space-y-2">
+                       
+
+                       <LinkNext href={`/article/${item.id}`} className="flex-1 min-w-0 w-full space-y-3">
                           <div className="flex items-center gap-2">
                              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded tracking-widest">{item.category}</span>
-                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter opacity-60">| {institution}</span>
+                             <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter opacity-60 italic">| {institution}</span>
                           </div>
-                          <h4 className="text-xl lg:text-[26px] font-black text-slate-800 group-hover:text-blue-700 leading-tight tracking-tighter transition-colors">{title}</h4>
+                          <h4 className="text-xl lg:text-[24px] font-black text-slate-800 group-hover:text-blue-700 leading-tight tracking-tighter transition-colors">{title}</h4>
                           <p className="text-[14px] text-slate-500 line-clamp-2 leading-relaxed font-medium">{item.summary?.replace(/<[^>]*>/g, '')}</p>
                        </LinkNext>
                        <div className="hidden md:flex w-10 shrink-0 justify-end">
@@ -582,8 +598,6 @@ export default function Home() {
             </aside>
           )}
         </div>
-
-        </div>
       </main>
 
       {/* Floating Subscription FAB */}
@@ -611,19 +625,63 @@ export default function Home() {
               <div className="space-y-3">
                 <h3 className="text-3xl font-black text-slate-900 tracking-tighter">기틀 지능형 뉴스레터</h3>
                 <p className="text-slate-500 font-medium leading-relaxed">
-                  매일 아침 업데이트되는 핵심 전략 리포트와<br/>관심 공고 관리 기능을 무료로 만나보세요.
+                  구독 한 번으로 프리미엄 비즈니스 인사이트를<br/>매일 아침 무료로 받아보세요.
                 </p>
               </div>
+
+              <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이용하실 혜택 선택</p>
+                 {BENEFIT_LIST.map((benefit) => {
+                   const isSelected = selectedBenefits.includes(benefit.id);
+                   return (
+                     <button 
+                       key={benefit.id}
+                       onClick={() => {
+                         setSelectedBenefits(prev => 
+                           prev.includes(benefit.id) ? prev.filter(b => b !== benefit.id) : [...prev, benefit.id]
+                         );
+                       }}
+                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 ${isSelected ? 'bg-white border-blue-600 shadow-md' : 'bg-transparent border-transparent opacity-60'}`}
+                     >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
+                           {isSelected ? '✓' : ''}
+                        </div>
+                        <p className={`text-[13.5px] font-black tracking-tight ${isSelected ? 'text-slate-900' : 'text-slate-400'}`}>{benefit.label}</p>
+                     </button>
+                   );
+                 })}
+              </div>
+
+              <div className="space-y-5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 분야 선택 (중복 가능)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {ALL_SUBSCRIPTION_SECTORS.map(sector => (
+                    <button 
+                      key={sector}
+                      type="button"
+                      onClick={() => {
+                        setInterestSectors(prev => 
+                          prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
+                        );
+                      }}
+                      className={`px-2 py-3 rounded-xl text-[11px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                    >
+                      {sector}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <form onSubmit={submitEmail} className="mt-10 space-y-4">
                  <input 
                   type="email" 
                   required 
-                  placeholder="이메일 주소 입력" 
+                  placeholder="뉴스레터를 받을 이메일 주소" 
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all shadow-sm" 
                   value={userEmail} 
                   onChange={(e) => setUserEmail(e.target.value)} 
                 />
-                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">뉴스레터 무료 구독하기 →</button>
+                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">프리미엄 혜택 시작하기 →</button>
               </form>
               <div className="pt-4 border-t border-slate-50">
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Coming Soon: Google One-tap Login</p>
@@ -634,7 +692,6 @@ export default function Home() {
            </div>
         </div>
       )}
-      </main>
 
       <footer className="bg-white py-24 mt-24 border-t-2 border-slate-100 text-center">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-6">

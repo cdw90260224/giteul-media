@@ -152,10 +152,6 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
   const toggleBookmark = () => {
     if (!post) return;
-    if (!isSubscribed) {
-      setShowEmailModal(true);
-      return;
-    }
     setBookmarks(prev => {
       const next = prev.includes(post.id) ? prev.filter(b => b !== post.id) : [...prev, post.id];
       localStorage.setItem('antigravity_bookmarks', JSON.stringify(next));
@@ -566,32 +562,23 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               </div>
 
               <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이용하실 혜택 선택</p>
-                 {BENEFIT_LIST.map((benefit) => {
-                   const isSelected = selectedBenefits.includes(benefit.id);
-                   return (
-                     <button 
-                       key={benefit.id}
-                       onClick={() => {
-                         setSelectedBenefits(prev => 
-                           prev.includes(benefit.id) ? prev.filter(b => b !== benefit.id) : [...prev, benefit.id]
-                         );
-                       }}
-                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 ${isSelected ? 'bg-white border-blue-600 shadow-md' : 'bg-transparent border-transparent opacity-60'}`}
-                     >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                           {isSelected ? '✓' : ''}
-                        </div>
-                        <p className={`text-[13.5px] font-black tracking-tight ${isSelected ? 'text-slate-900' : 'text-slate-400'}`}>{benefit.label}</p>
-                     </button>
-                   );
-                 })}
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이메일 구독 시 제공되는 혜택</p>
+                 {[
+                   { id: 'strategy', label: "AI 기반 '합격 전략 리포트' 전체 공개 🔒" },
+                   { id: 'newsletter', label: "매일 아침 맞춤형 지능형 뉴스레터 발송 ✉️" },
+                   { id: 'bookmarks', label: "관심 공고 북마크 및 데드라인 알림 ⏰" }
+                 ].map(benefit => (
+                    <div key={benefit.id} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">✓</div>
+                        <p className="text-[13.5px] font-black tracking-tight text-slate-900">{benefit.label}</p>
+                    </div>
+                 ))}
               </div>
 
               <div className="space-y-5">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 분야 선택 (중복 가능)</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {ALL_SUBSCRIPTION_SECTORS.map(sector => (
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 산업 분야 <span className="font-normal">(다중 선택 가능)</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'].map(sector => (
                     <button 
                       key={sector}
                       type="button"
@@ -600,7 +587,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                           prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
                         );
                       }}
-                      className={`px-2 py-3 rounded-xl text-[11px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                      className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
                     >
                       {sector}
                     </button>

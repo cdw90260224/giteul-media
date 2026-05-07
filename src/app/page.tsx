@@ -66,6 +66,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState('');
   const [selectedBenefits, setSelectedBenefits] = useState<string[]>(['strategy', 'newsletter', 'bookmarks']);
   const [interestSectors, setInterestSectors] = useState<string[]>([]);
+  const [bookmarks, setBookmarks] = useState<number[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -75,6 +76,13 @@ export default function Home() {
       setLoadingMsg(msgs[i % msgs.length]);
       i++;
     }, 1200);
+    
+    if (typeof window !== 'undefined') {
+      const savedBookmarks = localStorage.getItem('antigravity_bookmarks');
+      if (savedBookmarks) {
+        try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { }
+      }
+    }
     return () => clearInterval(interval);
   }, []);
 
@@ -129,11 +137,41 @@ export default function Home() {
        }
     }
     if (activePill === '찜하기') {
-       list = [];
+       if (bookmarks.length === 0) return [];
+       list = list.filter(i => bookmarks.includes(i.id));
     }
 
     if (selectedChips.length > 0) {
-      list = list.filter(i => selectedChips.some(chip => (i.title + (i.summary || '')).includes(chip)));
+      const CHIP_KEYWORDS: Record<string, string[]> = {
+        'AI/빅데이터': ['ai', '인공지능', '빅데이터', '데이터', '머신러닝', 'llm', '딥러닝'],
+        'SaaS/플랫폼': ['saas', '플랫폼', '클라우드', '소프트웨어', '앱', '웹', 'b2b'],
+        '바이오/헬스케어': ['바이오', '헬스케어', '의료', '신약', '제약', '의료기기', '의생명'],
+        '친환경/에너지': ['친환경', '에너지', 'esg', '탄소', '그린', '배터리', '재생', '에코'],
+        '로봇/모빌리티': ['로봇', '모빌리티', '드론', '자율주행', '자동차', '항공', '이동체'],
+        '소부장/제조': ['소부장', '제조', '소재', '부품', '장비', '하드웨어', '공장', '양산'],
+        '핀테크/블록체인': ['핀테크', '블록체인', '금융', '코인', '결제', '토큰', '페이'],
+        '콘텐츠/게임': ['콘텐츠', '게임', '웹툰', '애니', '미디어', '엔터', '크리에이터', '방송'],
+        '푸드/애그테크': ['푸드', '애그', '농업', '스마트팜', '식품', '외식', '푸드테크'],
+        'R&D 지원': ['r&d', '연구', '기술개발'],
+        '사업화 자금': ['사업화', '창업', '자금', '지원금', '바우처'],
+        '마케팅 바우처': ['마케팅', '수출바우처', '홍보'],
+        '공간/인프라': ['공간', '입주', '보육', '인프라', '센터', '오피스'],
+        '멘토링/컨설팅': ['멘토링', '컨설팅', '엑셀러레이팅', '교육', 'ir'],
+        '글로벌/수출': ['글로벌', '수출', '해외', '현지화', '글로벌진출'],
+        '예비창업자': ['예비', '초기'],
+        '초기스타트업': ['초기', '스타트업', '3년'],
+        '도약/스케일업': ['도약', '스케일업', '7년', '창업도약'],
+        '소상공인': ['소상공인', '전통시장'],
+        '중소기업': ['중소기업', '벤처기업', '중소']
+      };
+
+      list = list.filter(i => {
+        const text = (i.title + ' ' + (i.summary || '') + ' ' + (i.category || '')).toLowerCase();
+        return selectedChips.some(chip => {
+          const keywords = CHIP_KEYWORDS[chip] || [chip.toLowerCase()];
+          return keywords.some(kw => text.includes(kw));
+        });
+      });
     }
     if (searchQuery.trim()) {
       list = list.filter(i => i.title.includes(searchQuery));
@@ -446,17 +484,24 @@ export default function Home() {
            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowFilter(false)} />
            <div className="relative w-full max-w-md bg-white h-full shadow-2xl p-12 space-y-12 animate-drawer-in rounded-l-[2.5rem] flex flex-col">
               <div className="flex items-center justify-between border-b border-slate-100 pb-6 shrink-0">
-                 <h2 className="text-2xl font-black tracking-tighter">인텔리전스 필터</h2>
+                 <div>
+                    <h2 className="text-2xl font-black tracking-tighter">인텔리전스 필터</h2>
+                    <p className="text-[11px] text-slate-400 font-bold mt-1">선택된 태그를 다시 클릭(더블클릭)하면 취소됩니다.</p>
+                 </div>
                  <button onClick={() => setShowFilter(false)} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                  </button>
               </div>
               <div className="space-y-10 flex-1 overflow-y-auto pr-2">
-                 {['산업 분야', '지원 형태', '기업 규모'].map(category => (
-                   <div key={category} className="space-y-4">
-                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{category}</p>
+                 {[
+                   { title: '산업 분야', tags: ['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'] },
+                   { title: '지원 형태', tags: ['R&D 지원', '사업화 자금', '마케팅 바우처', '공간/인프라', '멘토링/컨설팅', '글로벌/수출'] },
+                   { title: '기업 규모', tags: ['예비창업자', '초기스타트업', '도약/스케일업', '소상공인', '중소기업'] }
+                 ].map(category => (
+                   <div key={category.title} className="space-y-4">
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{category.title}</p>
                       <div className="flex flex-wrap gap-2">
-                         {['기술/IT', '마케팅 바우처', '스타트업', 'R&D', '수출'].map(tag => (
+                         {category.tags.map(tag => (
                            <button 
                             key={tag} 
                             onClick={() => setSelectedChips(prev => prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag])}
@@ -500,7 +545,13 @@ export default function Home() {
       {!isSubscribed && (
         <div className="fixed bottom-10 right-10 z-50">
           <button 
-            onClick={() => setIsEmailGateOpen(true)}
+            onClick={() => {
+              // 필터 드로어에서 선택한 태그가 있다면 모달의 관심 분야에 기본으로 셋팅
+              if (selectedChips.length > 0) {
+                 setInterestSectors([...selectedChips]);
+              }
+              setIsEmailGateOpen(true);
+            }}
             className="w-16 h-16 bg-slate-900 shadow-2xl rounded-2xl flex items-center justify-center text-white hover:bg-slate-800 hover:scale-110 transition-all group relative"
           >
             <svg className="w-8 h-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -525,35 +576,27 @@ export default function Home() {
               </div>
 
               <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이메일 구독 시 제공되는 혜택</p>
                  {[
-                   { id: 'strategy', label: '심층 전략 리포트 열람 권한' },
-                   { id: 'newsletter', label: '매일 아침 맞춤형 뉴스레터 발송' },
-                   { id: 'bookmarks', label: '관심 공고 북마크 및 데드라인 알림' }
-                 ].map(benefit => {
-                   const isSelected = selectedBenefits.includes(benefit.id);
-                   return (
-                     <button 
-                       key={benefit.id} type="button"
-                       onClick={() => setSelectedBenefits(prev => prev.includes(benefit.id) ? prev.filter(b => b !== benefit.id) : [...prev, benefit.id])}
-                       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all border-2 ${isSelected ? 'bg-white border-slate-900 shadow-md' : 'bg-transparent border-transparent opacity-60'}`}
-                     >
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all ${isSelected ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                           {isSelected ? '✓' : ''}
-                        </div>
-                        <p className={`text-[13.5px] font-black tracking-tight ${isSelected ? 'text-slate-900' : 'text-slate-400'}`}>{benefit.label}</p>
-                     </button>
-                   );
-                 })}
+                   { id: 'strategy', label: '심층 전략 리포트 열람 권한 🔒' },
+                   { id: 'newsletter', label: '매일 아침 맞춤형 지능형 뉴스레터 발송 ✉️' },
+                   { id: 'bookmarks', label: '관심 공고 북마크 및 데드라인 알림 ⏰' }
+                 ].map(benefit => (
+                    <div key={benefit.id} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                        <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">✓</div>
+                        <p className="text-[13.5px] font-black tracking-tight text-slate-900">{benefit.label}</p>
+                    </div>
+                 ))}
               </div>
 
               <div className="text-left space-y-4">
-                 <p className="text-[12px] font-black text-slate-900 ml-2">관심 산업 분야 (다중 선택)</p>
+                 <p className="text-[12px] font-black text-slate-900 ml-2">관심 산업 분야 <span className="text-slate-400 font-normal">(다중 선택 가능)</span></p>
                  <div className="flex flex-wrap gap-2">
-                    {['기술/IT', '농업/스마트팜', '소상공인', '제조업', '콘텐츠', '바이오/의료', '에너지/환경', '수출/무역', 'R&D'].map(sector => (
+                    {['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'].map(sector => (
                       <button
                         key={sector} type="button"
                         onClick={() => setInterestSectors(prev => prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector])}
-                        className={`px-3 py-2 rounded-xl text-[11px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}
+                        className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
                       >
                         {sector}
                       </button>
@@ -561,7 +604,16 @@ export default function Home() {
                  </div>
               </div>
 
-              <form onSubmit={async (e) => { e.preventDefault(); if(userEmail) { setIsSubscribed(true); setIsEmailGateOpen(false); } }} className="space-y-4">
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                if(userEmail.includes('@')) { 
+                  try {
+                    await supabase.from('subscribers').insert([{ email: userEmail, sectors: interestSectors }]);
+                    setIsSubscribed(true); 
+                    setIsEmailGateOpen(false); 
+                  } catch (err) { console.error(err); }
+                } 
+              }} className="space-y-4">
                 <input 
                   type="email" 
                   required 

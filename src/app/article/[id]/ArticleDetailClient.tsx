@@ -273,7 +273,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         <div className="space-y-8">
             {dDay && (
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 animate-bounce-subtle">
+                <div className="print:hidden flex items-center gap-3 animate-bounce-subtle">
                   <span className={`${dDay.color} px-4 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-lg`}>
                     {dDay.label}
                   </span>
@@ -281,7 +281,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 </div>
                 <button 
                   onClick={toggleBookmark}
-                  className={`group flex items-center justify-center p-3 rounded-full border-2 transition-all ${isBookmarked ? 'bg-red-50 border-red-300 text-red-500 shadow-lg shadow-red-200 scale-110' : 'bg-white border-slate-100 text-slate-300 hover:border-red-400 hover:text-red-400'}`}
+                  className={`print:hidden group flex items-center justify-center p-3 rounded-full border-2 transition-all ${isBookmarked ? 'bg-red-50 border-red-300 text-red-500 shadow-lg shadow-red-200 scale-110' : 'bg-white border-slate-100 text-slate-300 hover:border-red-400 hover:text-red-400'}`}
                 >
                   <svg className={`w-8 h-8 ${isBookmarked ? 'fill-current animate-heart-pop' : 'fill-none group-hover:scale-110 transition-transform'}`} stroke="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
                 </button>
@@ -319,7 +319,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 mb-16">
+      <div className="print:hidden max-w-5xl mx-auto px-6 mb-16">
         <div className="relative aspect-[21/9] w-full rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-[16px] border-white ring-1 ring-slate-100 bg-white">
           <img 
             src={post.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=1600&auto=format&fit=crop'} 
@@ -394,27 +394,9 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   <td className="p-6 text-[1.1rem] font-bold text-slate-800 border-b border-slate-50" {...props} />
                 ),
                 blockquote: ({node, ...props}) => (
-                  <div className="my-12 p-10 md:p-14 bg-gradient-to-br from-slate-50 to-white rounded-[3.5rem] border-2 border-slate-100 shadow-xl relative overflow-hidden group hover:border-blue-100 transition-all duration-700">
-                    <div className="absolute top-0 left-0 w-2 h-full bg-blue-600" />
-                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative z-10">
-                      <div className="text-[1.2rem] md:text-[1.35rem] leading-[2] text-slate-700 font-bold tracking-tight">
-                        {props.children}
-                      </div>
-                    </div>
-                    <div className="mt-10 pt-8 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-slate-900 border-2 border-white shadow-xl flex items-center justify-center overflow-hidden">
-                          <div className="text-white font-black italic text-sm">G</div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-slate-900 font-black text-sm tracking-tight">안티그래비티 전문위원</span>
-                          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Chief Strategy Reporter</span>
-                        </div>
-                      </div>
-                      <div className="hidden md:block">
-                         <span className="text-slate-100 text-6xl font-black italic select-none">ANALYSIS</span>
-                      </div>
+                  <div className="my-8">
+                    <div className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight">
+                      {props.children}
                     </div>
                   </div>
                 )
@@ -426,7 +408,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         </div>
 
         {isGovSupport && (post.notice_url || post.url) && (
-            <div className="mt-20 -mb-4 flex flex-col items-center">
+            <div className="print:hidden mt-20 -mb-4 flex flex-col items-center">
                <a href={post.notice_url || post.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 px-12 py-5 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 font-black text-[16px] tracking-widest hover:border-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-lg hover:shadow-2xl">
                    <span>🌐 공식 웹사이트 원문 공고 확인하기</span>
                    <svg className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
@@ -480,11 +462,50 @@ export default function ArticleDetailClient({ id }: { id: string }) {
           .animate-bounce-subtle { animation: bounce-subtle 3s ease-in-out infinite; }
           
           @media print {
-            body { font-size: 11pt !important; background: white !important; }
-            article { max-width: 100% !important; padding: 0 !important; }
+            @page { size: A4; margin: 15mm 20mm; }
+            body { 
+               font-size: 10.5pt !important; 
+               background: white !important; 
+               -webkit-print-color-adjust: exact; 
+               print-color-adjust: exact; 
+               color: #1e293b !important;
+            }
+            article { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
             .article-content { padding: 0px !important; }
-            h2, h3 { page-break-after: avoid; }
-            p, ul, li { page-break-inside: avoid; }
+            
+            /* 웹용 대형 여백 대폭 축소 (흰 여백 낭비 방지) */
+            .my-16, .my-12, .mt-24, .mt-20, .mb-16, .mb-10, .mb-8, .pt-12 { 
+               margin-top: 1.5rem !important; 
+               margin-bottom: 1rem !important; 
+               padding-top: 0 !important; 
+            }
+            .p-10, .md\\:p-14 { padding: 1.5rem !important; }
+            
+            /* 제목과 다음 단락이 분리되지 않도록 묶음 */
+            h1, h2, h3, h4 { 
+               page-break-after: avoid; 
+               break-after: avoid; 
+               margin-top: 1.5rem !important; 
+               margin-bottom: 0.5rem !important;
+            }
+            
+            /* 단락/리스트는 자연스럽게 잘려 다음 장으로 넘어가도록 (흰 바탕 최소화) */
+            p, li, blockquote, div { 
+               page-break-inside: auto; 
+               break-inside: auto; 
+               orphans: 3; 
+               widows: 3; 
+            }
+            
+            /* 이미지나 표는 무조건 한 장 안에 묶기 */
+            img, table, figure { 
+               page-break-inside: avoid; 
+               break-inside: avoid; 
+               max-height: 400px; 
+               object-fit: cover; 
+               display: block; 
+               margin: 0 auto !important;
+            }
           }
         ` }} />
       </article>

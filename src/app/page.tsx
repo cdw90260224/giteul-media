@@ -24,16 +24,25 @@ function DDayBadge({ deadline, category, title, summary, className = "" }: { dea
     }
   }
 
-  const today = new Date('2026-05-06'); 
+  const today = new Date('2026-05-07'); 
   today.setHours(0,0,0,0);
 
-  if (!finalDeadline || finalDeadline === '상시모집') {
-     return <span className={`px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>상시모집</span>;
+  if (!finalDeadline) {
+     return <span className={`px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>미정</span>;
   }
   
   const target = new Date(finalDeadline);
   target.setHours(0,0,0,0);
   const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (isNaN(diff)) {
+      let text = "상시모집";
+      if (finalDeadline.includes('확인')) text = "상시/확인";
+      else if (finalDeadline.includes('소진')) text = "예산소진시";
+      else if (finalDeadline !== '상시모집' && finalDeadline.length <= 6) text = finalDeadline;
+      
+      return <span className={`px-2 py-1 bg-teal-50 text-teal-600 border border-teal-100/50 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>{text}</span>;
+  }
   
   if (diff < 0) return <span className={`px-2 py-1 bg-slate-200 text-slate-400 text-[10px] font-black uppercase rounded-md ${className}`}>마감</span>;
   if (diff === 0) return <span className={`px-2 py-1 bg-[#FF5C00] text-white text-[10px] font-black animate-pulse uppercase rounded-md shadow-lg shadow-orange-500/20 ${className}`}>D-DAY</span>;
@@ -47,6 +56,7 @@ export default function Home() {
   const [loadingMsg, setLoadingMsg] = useState("데이터 인텔리전스 동기화 중...");
   
   const [activeTab, setActiveTab] = useState<'전체' | '지원 사업' | '뉴스·테크'>('전체');
+  const [activePill, setActivePill] = useState('전체');
   const [showFilter, setShowFilter] = useState(false);
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [visibleItems, setVisibleItems] = useState(15);
@@ -85,8 +95,43 @@ export default function Home() {
 
   const filteredItems = useMemo(() => {
     let list = [...newsItems];
+    
+    // 1. Tab filter (Only active if not "전체")
     if (activeTab === '지원 사업') list = list.filter(i => i.category === '정부지원공고');
     if (activeTab === '뉴스·테크') list = list.filter(i => i.category !== '정부지원공고');
+
+    // 2. Pill filter
+    if (activePill === '오늘 등록') {
+       const todayStart = new Date('2026-05-07T00:00:00Z');
+       list = list.filter(i => new Date(i.created_at) >= todayStart);
+    }
+    if (activePill === '마감 임박') {
+       const today = new Date('2026-05-07');
+       today.setHours(0,0,0,0);
+       list = list.filter(i => {
+          if (i.category !== '정부지원공고') return false;
+          let d = i.deadline_date;
+          if (!d || d === '상시모집') {
+             const datePattern = /(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})|(\d{1,2})[.\-/](\d{1,2})/;
+             const match = (i.title + ' ' + (i.summary || '')).match(datePattern);
+             if (match) d = match[1] ? `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}` : `2026-${match[4].padStart(2, '0')}-${match[5].padStart(2, '0')}`;
+          }
+          if (!d || d === '상시모집') return false;
+          const target = new Date(d);
+          target.setHours(0,0,0,0);
+          const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          return diff >= 0 && diff <= 3;
+       });
+    }
+    if (activePill === '관심 분야') {
+       if (selectedChips.length === 0) {
+          list = [];
+       }
+    }
+    if (activePill === '찜하기') {
+       list = [];
+    }
+
     if (selectedChips.length > 0) {
       list = list.filter(i => selectedChips.some(chip => (i.title + (i.summary || '')).includes(chip)));
     }
@@ -94,9 +139,37 @@ export default function Home() {
       list = list.filter(i => i.title.includes(searchQuery));
     }
     return list;
-  }, [newsItems, activeTab, selectedChips, searchQuery]);
+  }, [newsItems, activeTab, activePill, selectedChips, searchQuery]);
 
-  const trendingList = useMemo(() => [...newsItems].slice(0, 5), [newsItems]);
+  const trendingList = useMemo(() => {
+    return [...newsItems]
+      .filter(i => i.category === '정부지원공고') // 플랫폼의 본질인 정부지원공고만 엄선
+      .sort((a, b) => {
+        let scoreA = 0;
+        let scoreB = 0;
+        
+        // 1. K-Startup 메인 인기 사업(핫 키워드) 압도적 가중치
+        const hotKeywords = ['TIPS', '팁스', '바우처', 'R&D', '초격차', '패키지', '창업사관학교', '지원사업'];
+        hotKeywords.forEach(kw => {
+            if (a.title.includes(kw)) scoreA += 500;
+            if (b.title.includes(kw)) scoreB += 500;
+        });
+        
+        // 2. 유저 지적사항 반영: 단순 '수정/변경/결과' 공고는 랭킹에서 대폭 강등 (패널티)
+        const penaltyKeywords = ['수정', '변경', '결과', '발표', '안내', '취소', '연장', '모집안내'];
+        penaltyKeywords.forEach(kw => {
+            if (a.title.includes(kw)) scoreA -= 1000;
+            if (b.title.includes(kw)) scoreB -= 1000;
+        });
+
+        // 3. 최신 데이터 어드밴티지 (기본 점수)
+        scoreA += (a.id % 100);
+        scoreB += (b.id % 100);
+
+        return scoreB - scoreA;
+      })
+      .slice(0, 5);
+  }, [newsItems]);
   const heroItem = newsItems[0];
 
   if (loading) return (
@@ -139,13 +212,14 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-12 space-y-16">
+      <main className="max-w-7xl mx-auto px-8 py-12 space-y-12">
         
-        {/* HERO BENTO (Dynamic Collapse/Expand) */}
-        <section className={`grid gap-8 transition-[height,opacity] duration-700 ease-in-out overflow-hidden ${activeTab === '전체' ? 'grid-cols-1 lg:grid-cols-10 h-[640px] mb-16 opacity-100' : 'grid-cols-1 h-[120px] mb-8 opacity-90 hover:opacity-100'}`}>
-            <div className={`bg-white rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/40 border border-slate-100 group transition-all duration-700 ${activeTab === '전체' ? 'lg:col-span-7 h-[640px]' : 'h-[120px]'}`}>
-               <LinkNext href={`/article/${heroItem?.id || '#'}`} className={`flex w-full h-full ${activeTab === '전체' ? 'flex-col' : 'flex-row'}`}>
-                  <div className={`overflow-hidden bg-slate-100 shrink-0 relative transition-all duration-700 ${activeTab === '전체' ? 'h-[55%] w-full' : 'h-full w-48'}`}>
+        {/* HERO AREA (Conditional by Tab) */}
+        {activeTab === '전체' && (
+          <section className="grid gap-8 grid-cols-1 lg:grid-cols-10 h-[640px]">
+            <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/40 border border-slate-100 group lg:col-span-7 h-[640px]">
+               <LinkNext href={`/article/${heroItem?.id || '#'}`} className="flex flex-col w-full h-full">
+                  <div className="overflow-hidden bg-slate-100 shrink-0 relative h-[55%] w-full">
                     <img 
                       src={heroItem?.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
@@ -154,30 +228,30 @@ export default function Home() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className={`flex-1 flex flex-col justify-center bg-white z-10 transition-all duration-700 ${activeTab === '전체' ? 'p-12' : 'px-10 py-0'}`}>
-                    <div className={`flex items-center gap-3 ${activeTab === '전체' ? 'mb-6' : 'mb-2'}`}>
+                  <div className="flex-1 flex flex-col justify-center bg-white z-10 p-12">
+                    <div className="flex items-center gap-3 mb-6">
                        <DDayBadge deadline={heroItem?.deadline_date} category={heroItem?.category} title={heroItem?.title} />
                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{heroItem?.category}</span>
                     </div>
-                    <h2 className={`font-black text-slate-900 tracking-tighter line-clamp-2 transition-all duration-700 ${activeTab === '전체' ? 'text-4xl mb-4 leading-tight' : 'text-2xl leading-snug'}`}>{parseTitle(heroItem?.title || '').title}</h2>
-                    {activeTab === '전체' && <p className="text-[15px] text-slate-500 font-medium leading-relaxed line-clamp-2">{heroItem?.summary?.replace(/<[^>]*>/g, '')}</p>}
+                    <h2 className="font-black text-slate-900 tracking-tighter line-clamp-2 text-4xl mb-4 leading-tight">{parseTitle(heroItem?.title || '').title}</h2>
+                    <p className="text-[15px] text-slate-500 font-medium leading-relaxed line-clamp-2">{heroItem?.summary?.replace(/<[^>]*>/g, '')}</p>
                   </div>
                </LinkNext>
             </div>
 
-            <div className={`bg-white text-slate-900 border border-slate-100 rounded-[2.5rem] p-10 flex flex-col justify-between shadow-2xl shadow-slate-200/40 relative overflow-hidden transition-all duration-700 ${activeTab === '전체' ? 'lg:col-span-3 h-[640px] opacity-100' : 'hidden opacity-0 w-0'}`}>
+            <div className="bg-white text-slate-900 border border-slate-100 rounded-[2.5rem] p-10 flex flex-col justify-between shadow-2xl shadow-slate-200/40 relative overflow-hidden lg:col-span-3 h-[640px]">
                <div className="absolute top-0 right-0 p-8 opacity-5 text-slate-900 pointer-events-none">
                   <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
                </div>
                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 shrink-0 z-10">
-                  <h3 className="font-black text-2xl tracking-tighter text-slate-900">지금 뜨는 소식</h3>
-                  <span className="text-[10px] font-black bg-[#FF5C00] text-white px-2 py-0.5 rounded-full italic animate-pulse">LIVE</span>
+                  <h3 className="font-black text-2xl tracking-tighter text-slate-900 italic">지금 뜨는 소식</h3>
+                  <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full italic">HOT</span>
                </div>
                <div className="flex-1 flex flex-col justify-between mt-6 z-10">
                   {trendingList.map((item, idx) => (
                     <LinkNext key={item.id} href={`/article/${item.id}`} className="group relative flex gap-5 items-start">
                       <div className="flex-shrink-0">
-                         <span className="text-3xl font-black text-slate-300 group-hover:text-[#FF5C00] transition-colors leading-none tracking-tighter italic">
+                         <span className="text-3xl font-black text-slate-200 group-hover:text-[#FF5C00] transition-colors leading-none tracking-tighter italic">
                             {(idx + 1).toString().padStart(2, '0')}
                          </span>
                       </div>
@@ -185,7 +259,7 @@ export default function Home() {
                          <div className="flex items-center gap-2 mb-1.5">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
                          </div>
-                         <h4 className="text-[16px] font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#FF5C00] transition-colors tracking-tight">
+                         <h4 className="text-[15px] font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#FF5C00] transition-colors tracking-tight">
                             {parseTitle(item.title).title}
                          </h4>
                       </div>
@@ -194,6 +268,66 @@ export default function Home() {
                </div>
             </div>
           </section>
+        )}
+
+        {activeTab === '지원 사업' && (
+          <section className="-mx-8 px-10 py-12 mb-12 bg-[#F4FDF8] rounded-[2.5rem]">
+             <div className="flex items-center gap-3 mb-10">
+                <span className="text-[#10b981] font-bold text-sm tracking-tight">실시간 기한 분석 시스템 가동 중</span>
+                <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {filteredItems.filter(i => i.category === '정부지원공고').slice(0, 3).map((item, idx) => (
+                   <LinkNext key={item.id} href={`/article/${item.id}`} className="bg-white rounded-2xl p-8 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow flex flex-col justify-center h-[180px]">
+                      <div className="flex items-center gap-3 mb-4">
+                         <span className="text-4xl font-black text-emerald-100 italic">{idx + 1}</span>
+                         <div className="px-3 py-1 bg-[#10b981] text-white text-[11px] font-black rounded-full tracking-wider shadow-sm">D-DAY</div>
+                      </div>
+                      <h4 className="text-[17px] font-black text-slate-900 leading-snug line-clamp-2">{parseTitle(item.title).title}</h4>
+                   </LinkNext>
+                ))}
+             </div>
+          </section>
+        )}
+
+        {activeTab === '뉴스·테크' && (
+          <section className="-mx-8 px-12 py-14 mb-12 bg-[#FBF8FF] rounded-[2.5rem] relative overflow-hidden">
+             <div className="relative z-10 max-w-4xl">
+                <h2 className="text-3xl font-black text-slate-900 mb-2">오늘의 테크 헤드라인</h2>
+                <p className="text-[11px] font-black text-[#a855f7] uppercase tracking-widest mb-10">GLOBAL AI & TECH INTELLIGENCE HUB</p>
+                
+                <div className="flex flex-col gap-8">
+                   {filteredItems.filter(i => i.category !== '정부지원공고').slice(0, 2).map((item, idx) => (
+                      <LinkNext key={item.id} href={`/article/${item.id}`} className="flex gap-6 group cursor-pointer items-start">
+                         <span className="text-3xl font-black text-[#d8b4fe] italic mt-1">{idx + 1}</span>
+                         <div className="flex-1">
+                            <h4 className="text-[18px] font-black text-slate-900 group-hover:text-[#a855f7] transition-colors leading-relaxed line-clamp-1 mb-1.5">{parseTitle(item.title).title}</h4>
+                            <p className="text-[13px] text-slate-500 line-clamp-1">[{item.category}] {item.summary?.replace(/<[^>]*>/g, '')}</p>
+                         </div>
+                      </LinkNext>
+                   ))}
+                </div>
+             </div>
+             <div className="absolute top-12 right-12 text-[#a855f7] opacity-20 pointer-events-none">
+                <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L22 22L12 18L2 22L12 2Z"/></svg>
+             </div>
+          </section>
+        )}
+
+        {/* PILL FILTERS */}
+        <div className="flex gap-3 mb-10 border-b border-slate-100 pb-8">
+          {['전체', '오늘 등록', '마감 임박', '관심 분야', '찜하기'].map((pill, idx) => (
+            <button 
+               key={pill} 
+               onClick={() => {
+                  setActivePill(pill);
+                  if (pill === '관심 분야' && selectedChips.length === 0) setShowFilter(true);
+               }}
+               className={`px-6 py-2.5 rounded-full text-[13px] font-bold border transition-colors ${activePill === pill ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : 'bg-transparent border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-900'}`}>
+              {pill}
+            </button>
+          ))}
+        </div>
 
         {/* ACTIVE FILTERS CHIPS */}
         {selectedChips.length > 0 && (
@@ -206,52 +340,100 @@ export default function Home() {
           </div>
         )}
 
-        {/* 3-COLUMN GRID FEED */}
+        {/* 2-COLUMN LIST FEED */}
         <section className="space-y-8 pb-32">
-           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
-              <h2 className="text-3xl font-black tracking-tighter">
-                {activeTab === '지원 사업' ? '맞춤 지원 공고' : activeTab === '뉴스·테크' ? '산업 동향 뉴스' : '인텔리전스 피드'}
-              </h2>
-              <span className="text-[12px] font-black text-slate-400 uppercase tracking-widest">Total {filteredItems.length} Data</span>
-           </div>
+           <h2 className="text-3xl font-black tracking-tighter mb-8">전체 브리핑</h2>
            
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredItems.slice(0, visibleItems).map((item) => {
-                const { title, institution } = parseTitle(item.title);
-                return (
-                  <LinkNext key={item.id} href={`/article/${item.id}`} className="group flex flex-col bg-white rounded-3xl border border-slate-100 hover:border-slate-300 hover:shadow-2xl hover:shadow-slate-200/50 transition-all overflow-hidden h-full">
-                     <div className="h-48 overflow-hidden bg-slate-100 relative">
-                        <img 
-                          src={item.image_url} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'; }}
-                        />
-                        <div className="absolute top-4 left-4">
-                           <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} summary={item.summary} className="shadow-lg" />
-                        </div>
-                     </div>
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+             {/* LEFT COLUMN: 정부지원공고 */}
+             <div className="flex flex-col">
+               <div className="flex items-end justify-between mb-4 px-2">
+                 <div className="flex items-center gap-3">
+                   <div className="w-1.5 h-6 bg-[#FF5C00]" />
+                   <h3 className="text-2xl font-black italic tracking-tighter">정부지원공고</h3>
+                 </div>
+                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">LIVE FEED</span>
+               </div>
+               <div className="h-[2px] bg-slate-900 mb-2" />
+               
+               <div className="flex flex-col">
+                 {filteredItems.filter(i => i.category === '정부지원공고').slice(0, visibleItems).map((item, idx) => {
+                    const { title, institution } = parseTitle(item.title);
+                    return (
+                    <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-4 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
+                       <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
+                       <div className="flex-1 min-w-0 pr-4 space-y-1.5">
+                          <h4 className="text-[16px] font-black text-slate-900 group-hover:text-[#FF5C00] transition-colors leading-relaxed line-clamp-2">{title}</h4>
+                          <div className="flex items-center gap-2">
+                             <p className="text-[12px] font-bold text-slate-400">{institution}</p>
+                             <span className="text-[10px] text-slate-200">|</span>
+                             <span className="text-[11px] font-medium text-slate-400">{new Date(item.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'})} 등록</span>
+                          </div>
+                       </div>
+                       <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} className="shadow-md shrink-0 scale-110 origin-right" />
+                    </LinkNext>
+                    );
+                 })}
+                 {filteredItems.filter(i => i.category === '정부지원공고').length === 0 && (
+                    <div className="py-12 text-center text-slate-400 font-medium text-sm">
+                       {activePill === '관심 분야' && selectedChips.length === 0 ? '우측 상단의 필터 옵션에서 관심 분야를 설정해주세요.' : 
+                        activePill === '찜하기' ? '아직 찜한 공고가 없습니다.' : 
+                        activePill === '오늘 등록' ? '오늘 새롭게 등록된 지원사업 공고가 없습니다.' : 
+                        '해당 조건의 공고가 없습니다.'}
+                    </div>
+                 )}
+               </div>
+             </div>
 
-                     <div className="p-8 flex-1 flex flex-col">
-                        <div className="flex items-center gap-2 mb-4">
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
-                           <span className="w-1 h-1 rounded-full bg-slate-200" />
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{institution}</span>
-                        </div>
-                        <h4 className="text-[18px] font-black text-slate-900 group-hover:text-[#FF5C00] leading-snug transition-colors tracking-tight line-clamp-2 mb-4">{title}</h4>
-                        <div className="mt-auto pt-4 border-t border-slate-50 flex justify-between items-center text-[12px] font-bold text-slate-300">
-                           <span>자세히 보기</span>
-                           <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-                        </div>
-                     </div>
-                  </LinkNext>
-                );
-              })}
+             {/* RIGHT COLUMN: 인사이트&뉴스 */}
+             <div className="flex flex-col">
+               <div className="flex items-end justify-between mb-4 px-2">
+                 <div className="flex items-center gap-3">
+                   <div className="w-1.5 h-6 bg-slate-900" />
+                   <h3 className="text-2xl font-black italic tracking-tighter">인사이트&뉴스</h3>
+                 </div>
+                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">GLOBAL ANALYSIS</span>
+               </div>
+               <div className="h-[2px] bg-slate-900 mb-2" />
+               
+               <div className="flex flex-col">
+                 {filteredItems.filter(i => i.category !== '정부지원공고').slice(0, visibleItems).map((item, idx) => {
+                    const { title } = parseTitle(item.title);
+                    return (
+                    <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-5 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
+                       <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
+                       <div className="w-14 h-14 bg-slate-100 shrink-0 overflow-hidden border border-slate-200 rounded-lg shadow-sm">
+                          <img src={item.image_url} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                       </div>
+                       <div className="flex-1 min-w-0 pr-4 space-y-1.5">
+                          <div className="flex items-center gap-2 mb-0.5">
+                             <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">{item.category}</span>
+                             <span className="text-[10px] text-slate-200">|</span>
+                             <span className="text-[11px] font-medium text-slate-400">{new Date(item.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'})} 발행</span>
+                          </div>
+                          <h4 className="text-[16px] font-black text-slate-900 group-hover:text-slate-600 transition-colors leading-relaxed line-clamp-2">{title}</h4>
+                       </div>
+                       <svg className="w-5 h-5 text-slate-200 group-hover:text-slate-400 group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </LinkNext>
+                    );
+                 })}
+                 {filteredItems.filter(i => i.category !== '정부지원공고').length === 0 && (
+                    <div className="py-12 text-center text-slate-400 font-medium text-sm">
+                       {activePill === '관심 분야' && selectedChips.length === 0 ? '우측 상단의 필터 옵션에서 관심 분야를 설정해주세요.' : 
+                        activePill === '찜하기' ? '아직 찜한 뉴스가 없습니다.' : 
+                        activePill === '마감 임박' ? '뉴스 기사에는 마감 기한이 존재하지 않습니다.' : 
+                        activePill === '오늘 등록' ? '오늘 새롭게 발행된 테크 뉴스가 없습니다.' : 
+                        '해당 조건의 뉴스가 없습니다.'}
+                    </div>
+                 )}
+               </div>
+             </div>
            </div>
 
-           {filteredItems.length > visibleItems && (
-             <div className="pt-12 flex justify-center">
-                <button onClick={() => setVisibleItems(v => v + 15)} className="px-12 py-5 bg-white border border-slate-200 rounded-2xl text-[13px] font-black uppercase tracking-[0.2em] text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-md">
-                   더 많은 소식 불러오기
+           {(filteredItems.filter(i => i.category === '정부지원공고').length > visibleItems || filteredItems.filter(i => i.category !== '정부지원공고').length > visibleItems) && (
+             <div className="pt-16 flex justify-center">
+                <button onClick={() => setVisibleItems(v => v + 15)} className="px-12 py-5 bg-white border-2 border-slate-200 rounded-2xl text-[13px] font-black uppercase tracking-[0.1em] text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+                   LOAD MORE INTELLIGENCE +
                 </button>
              </div>
            )}
@@ -295,15 +477,23 @@ export default function Home() {
         </div>
       )}
 
-      <footer className="bg-white py-32 text-center border-t border-slate-100">
-         <div className="max-w-xl mx-auto px-10 space-y-8">
-            <h2 className="text-4xl font-black tracking-tighter">Weekly Briefing<span className="text-[#FF5C00]">.</span></h2>
-            <p className="text-slate-500 text-sm font-medium leading-relaxed">2026년 비즈니스 의사결정을 위한 리포트를<br/>매일 아침 이메일로 전해드립니다.</p>
-            <div className="flex flex-col gap-3 mt-8">
-               <input type="email" placeholder="이메일 주소 입력" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 text-sm font-bold focus:border-slate-900 focus:bg-white outline-none transition-all shadow-sm" />
-               <button className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[14px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20">구독 시작하기</button>
-            </div>
-         </div>
+      <footer className="bg-white py-16 mt-16 border-t border-slate-100 text-center">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
+          <div className="flex items-center gap-2">
+            <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
+            <div className="w-2 h-2 rounded-full bg-[#FF5C00]" />
+          </div>
+          <p className="text-slate-500 text-xs font-bold tracking-widest max-w-md mx-auto leading-relaxed">
+            기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.
+          </p>
+          <div className="flex gap-6">
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Intelligence</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Strategy</span>
+            <span className="text-slate-400 text-[10px] font-black tracking-[0.2em] uppercase">Growth</span>
+          </div>
+          <div className="h-px w-16 bg-slate-100" />
+          <p className="text-slate-400 text-[9px] font-bold uppercase tracking-[0.3em]">© 2026 Giteul AI Media Portal.</p>
+        </div>
       </footer>
 
       {/* Floating Subscription FAB */}

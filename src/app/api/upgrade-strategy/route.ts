@@ -15,7 +15,10 @@ async function callGeminiSafe(prompt: string) {
     for (const modelName of models) {
         console.log(`[AI-Upgrade] Attempting ${modelName}...`);
         try {
-            const model = genAI.getGenerativeModel({ model: modelName });
+            const model = genAI.getGenerativeModel({ 
+                model: modelName,
+                generationConfig: { responseMimeType: 'application/json' }
+            });
             const result = await model.generateContent(prompt);
             const text = result.response.text();
             if (text) {
@@ -47,19 +50,28 @@ export async function POST(request: Request) {
     반드시 JSON { "title", "content", "summary" } 형태로만 답하세요.
 
     --- 텍스트 정제 및 마크다운 작성 핵심 규칙 ---
-    1. "사업화", "창업진흥원", "모집공고 중복 기입" 등 K-Startup 크롤링에서 딸려온 지저분한 메타데이터 문자열을 절대 그대로 노출하거나 목차 제목으로 사용하지 마세요. 의미없는 노이즈는 전부 삭제하고 깔끔하게 정제하세요.
-    2. 눈을 피로하게 만드는 불필요한 **두꺼운 글씨(Bold)** 남용을 전면 금지합니다.
-    3. 본문은 잡다한 마크다운 헤더로 도배하지 말고, 요약된 깔끔한 서술형 리스트(Bullet points) 중심으로 전개하세요.
-    4. [매우 중요] 내용을 요약할 때 절대 마크다운 표(Table, | | | 형식)를 사용하지 마세요. 텍스트가 격자(그리드) 안에 갇히면 가독성이 떨어집니다.
+    1. [위계 엄수] 대제목은 반드시 '### '로 시작해야 합니다. '✦' 같은 이상한 특수문자나 이모지를 헤더 대신 사용하지 마세요. 
+    2. 내용 전개는 본문 텍스트와 표준 불릿('- ')을 조합하여 단정하고 깔끔하게 구성하세요.
+    3. 불필요한 **두꺼운 글씨(Bold)** 남용과 표(Table) 사용을 전면 금지합니다.
+    4. K-Startup 크롤링 메타데이터 노이즈("모집공고 중복 기입" 등)는 무시하고 삭제하세요.
+    5. 영문 텍스트(예: G Expert Opinion)를 불필요하게 섞어 쓰지 말고 자연스러운 한국어로 작성하세요.
     ---------------------------------
 
-    내용(content)은 마크다운으로 작성하며 다음 요소를 포함하세요:
-    - 이 기사/공고의 핵심 내용 (지원자격 및 혜택 요약)
-    - 중소기업/스타트업을 위한 단계별 실전 실행 가이드
-    - 합격을 부르는 사업계획서 문구 제안 작성법
+    내용(content)은 다음 4개의 대제목(###) 구조를 반드시 그대로 복사하여 그 아래에 내용을 채워 넣으세요:
     
-    마지막엔 반드시 "### ✒️ 기자의 시선: 전략 마스터클래스" 섹션을 인용구(> )와 함께 추가하고, 컨설턴트급 통찰력을 담아 날카로운 조언을 작성하세요.
-    Context (파편화된 원본 텍스트입니다. 예쁘게 다듬으세요): ${post.title} / ${post.content?.substring(0, 3000)}`;
+    ### 🎯 핵심 내용: 지원 자격 및 혜택 요약
+    (여기에 내용을 작성하세요)
+    
+    ### 🚀 중소기업/스타트업을 위한 단계별 실전 가이드
+    (1단계~4단계 등의 구체적인 실행 가이드를 작성하세요)
+    
+    ### 📝 합격을 부르는 사업계획서 문구 제안
+    (실제 사업계획서에 복붙할 수 있는 [문제 정의], [자원 활용 계획], [기대 효과] 등의 구체적인 템플릿 문구를 제공하세요)
+    
+    ### ✒️ 기자의 시선: 전략 마스터클래스
+    > (이 사업이 가지는 진짜 의미와, 타사 대비 차별화할 수 있는 날카로운 컨설턴트의 핵심 조언을 마크다운 인용구 형태로 작성하세요)
+
+    Context (원본 텍스트입니다): ${post.title} / ${post.content?.substring(0, 3000)}`;
 
     const aiRes = await callGeminiSafe(prompt);
     const jsonMatch = aiRes.match(/\{[\s\S]*\}/);

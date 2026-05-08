@@ -189,21 +189,40 @@ export default function ArticleDetailClient({ id }: { id: string }) {
   const isStrategyPost = post.title.includes('[전략]');
   const isBookmarked = bookmarks.includes(post.id);
 
+  const sourceUrl = post.notice_url || post.url || '';
+  let sourceName = '기틀 인텔리전스';
+  if (sourceUrl.includes('k-startup')) sourceName = 'K-Startup (창업진흥원)';
+  else if (sourceUrl.includes('mss.go.kr')) sourceName = '중소벤처기업부';
+  else if (sourceUrl.includes('sbiz.or.kr')) sourceName = '소상공인시장진흥공단';
+  else if (sourceUrl.includes('kised.or.kr')) sourceName = '창업진흥원';
+  else if (sourceUrl.includes('innopolis')) sourceName = '연구개발특구';
+  else if (sourceUrl.includes('kodit')) sourceName = '신용보증기금';
+  else if (sourceUrl && sourceUrl.startsWith('http')) {
+    try { sourceName = new URL(sourceUrl).hostname.replace('www.', ''); } catch(e) {}
+  }
+
+
+
     const getDDay = () => {
       const isStrategy = post.title.includes('[전략]') || post.category?.toLowerCase() === 'strategy';
       const isTech = ['tech', 'Tech', 'AI/테크 트렌드', 'AI/Tech', 'ai/tech'].includes(post.category || '');
       const isMarket = post.category === '기업/마켓 뉴스';
 
-      // [CRITICAL] D-Day Priority: title에서 날짜 추출 시도 (deadline이 없는 경우 대비)
+      // [CRITICAL] D-Day Priority: title + summary + content에서 날짜 추출 시도
       let effectiveDeadline = post.deadline_date;
-      if (!effectiveDeadline && post.title && (post.category === '정부지원공고' || post.category === 'strategy')) {
-        const dateMatch = post.title.match(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/) || 
-                         post.title.match(/(\d{1,2})[.\/-](\d{1,2})/);
+      if (!effectiveDeadline && (post.category === '정부지원공고' || post.category === 'strategy')) {
+        const combinedText = `${post.title} ${post.summary || ''} ${post.content || ''}`;
+        const dateMatch = combinedText.match(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/) || 
+                         combinedText.match(/(\d{1,2})[.\/-](\d{1,2})/) ||
+                         combinedText.match(/(\d{1,2})월\s*(\d{1,2})일/);
+        
         if (dateMatch) {
-          if (dateMatch[1].length === 4) {
+          if (dateMatch[1] && dateMatch[1].length === 4) {
             effectiveDeadline = `${dateMatch[1]}-${dateMatch[2].padStart(2, '0')}-${dateMatch[3].padStart(2, '0')}`;
-          } else {
+          } else if (dateMatch[1]) {
             effectiveDeadline = `2026-${dateMatch[1].padStart(2, '0')}-${dateMatch[2].padStart(2, '0')}`;
+          } else if (dateMatch[4]) {
+             effectiveDeadline = `2026-${dateMatch[4].padStart(2, '0')}-${dateMatch[5].padStart(2, '0')}`;
           }
         }
       }
@@ -212,27 +231,26 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
         if (isTech) return { label: 'TECH', color: 'bg-purple-600 text-white', text: '테크 트렌드 리포트' };
         if (isMarket) return { label: 'MARKET', color: 'bg-teal-600 text-white', text: '기업/마켓 리포트' };
-        if (post.category === '정부지원공고') return { label: 'D-상시/확인', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
+        if (post.category === '정부지원공고') return { label: 'D-확인', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
         return { label: 'NEWS', color: 'bg-slate-400 text-white', text: '최신 뉴스 업데이트' };
       };
 
       if (!effectiveDeadline) return getNoDeadlineInfo();
       
-      const today = new Date();
+      const today = new Date('2026-05-08');
       today.setHours(0, 0, 0, 0);
       const deadline = new Date(effectiveDeadline);
       if (isNaN(deadline.getTime())) return getNoDeadlineInfo();
       deadline.setHours(0, 0, 0, 0);
     
-    const diff = deadline.getTime() - today.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
     if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
 
-    if (days === 0) return { label: 'D-DAY', color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
-    if (days < 0) return { label: 'EXPIRED', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
-    if (days <= 7) return { label: `D-${days}`, color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
-    return { label: `D-${days}`, color: 'bg-slate-900 text-white', text: '안정적인 모집 중' };
+    if (diff === 0) return { label: 'D-DAY', color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
+    if (diff < 0) return { label: 'EXPIRED', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
+    if (diff <= 7) return { label: `D-${diff}`, color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
+    return { label: `D-${diff}`, color: 'bg-slate-900 text-white', text: '안정적인 모집 중' };
   };
 
   const dDay = getDDay();
@@ -295,7 +313,21 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   <SectorBadge sector={post.summary.match(/^\[(.*?)\]/)[1]} />
                 )}
             </h1>
-            
+
+            <div className="flex items-center gap-4 text-slate-400 font-bold text-[13px] tracking-wider">
+               <div className="flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                 <span>{new Date(post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })} 발행</span>
+               </div>
+               <span className="opacity-20 text-xs">|</span>
+               <div className="flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-[#FF5C00]" />
+                 <span className="text-slate-600 uppercase">Information Source:</span>
+                 <span className="text-[#FF5C00] font-black">{sourceName}</span>
+               </div>
+            </div>
+
+
             <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[4rem] border border-slate-200/50 shadow-sm group hover:border-blue-200 transition-all duration-500 overflow-hidden">
                 <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity select-none">
                     <span className="text-[12rem] font-black italic">REPORT</span>
@@ -330,6 +362,47 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
       <article className="max-w-3xl mx-auto px-6 pb-60 text-[1.25rem] leading-[1.9] text-slate-600 font-medium">
         <div className="max-w-none article-content">
+          {/* 크롤링 원본 데이터 — AI 추측이 아닌 K-Startup 공식 데이터 */}
+          {isGovSupport && (post.target || post.benefits || post.schedule) && (
+            <div className="mb-16 space-y-12">
+              {post.target && (
+                <div>
+                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
+                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    🎯 지원 대상
+                  </h2>
+                  <p className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight">{post.target}</p>
+                </div>
+              )}
+              {post.benefits && (
+                <div>
+                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
+                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    💰 지원 혜택
+                  </h2>
+                  <div className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight whitespace-pre-line">
+                    {post.benefits.split(/[◦◇•·∙]/).filter(Boolean).map((line: string, i: number) => (
+                      <div key={i} className="flex gap-4 mb-3">
+                        {i > 0 && <span className="text-blue-500 mt-0.5 shrink-0">✦</span>}
+                        <span>{line.trim()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {post.schedule && (
+                <div>
+                  <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
+                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    📅 접수 일정
+                  </h2>
+                  <p className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight">{post.schedule}</p>
+                </div>
+              )}
+              <hr className="border-slate-200 border-2" />
+            </div>
+          )}
+
           <div className="relative">
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
@@ -406,7 +479,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         {isGovSupport && (post.notice_url || post.url) && (
             <div className="print:hidden mt-20 -mb-4 flex flex-col items-center">
                <a href={post.notice_url || post.url} target="_blank" rel="noreferrer" className="group flex items-center gap-4 px-12 py-5 rounded-2xl bg-white border-2 border-slate-200 text-slate-800 font-black text-[16px] tracking-widest hover:border-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-lg hover:shadow-2xl">
-                   <span>🌐 공식 웹사이트 원문 공고 확인하기</span>
+                   <span>🌐 {sourceName} 공식 원문 공고 확인하기</span>
                    <svg className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
                </a>
                <p className="mt-4 text-[12px] font-bold text-slate-400 tracking-wider">이동 시 해당 웹사이트(K-Startup 등)의 새 창이 열립니다.</p>

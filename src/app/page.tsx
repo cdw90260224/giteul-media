@@ -15,20 +15,24 @@ function DDayBadge({ deadline, category, title, summary, className = "" }: { dea
   }
 
   let finalDeadline = deadline;
-  if (!finalDeadline || finalDeadline === '상시모집') {
-    const datePattern = /(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})|(\d{1,2})[.\-/](\d{1,2})/;
-    const match = (title + ' ' + (summary || '')).match(datePattern);
+  if (!finalDeadline || finalDeadline === '상시모집' || finalDeadline === '미정') {
+    // [CRITICAL] Expand search to title and summary for hidden dates
+    const combined = (title || '') + ' ' + (summary || '');
+    const datePattern = /(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})|(\d{1,2})[.\-/](\d{1,2})|(\d{1,2})월\s*(\d{1,2})일/;
+    const match = combined.match(datePattern);
+    
     if (match) {
       if (match[1]) finalDeadline = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
-      else finalDeadline = `2026-${match[4].padStart(2, '0')}-${match[5].padStart(2, '0')}`;
+      else if (match[4]) finalDeadline = `2026-${match[4].padStart(2, '0')}-${match[5].padStart(2, '0')}`;
+      else if (match[6]) finalDeadline = `2026-${match[6].padStart(2, '0')}-${match[7].padStart(2, '0')}`;
     }
   }
 
-  const today = new Date('2026-05-07'); 
+  const today = new Date('2026-05-08'); 
   today.setHours(0,0,0,0);
 
-  if (!finalDeadline) {
-     return <span className={`px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>미정</span>;
+  if (!finalDeadline || finalDeadline === '미정') {
+     return <span className={`px-2 py-1 bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>D-확인</span>;
   }
   
   const target = new Date(finalDeadline);
@@ -36,7 +40,7 @@ function DDayBadge({ deadline, category, title, summary, className = "" }: { dea
   const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   
   if (isNaN(diff)) {
-      let text = "상시모집";
+      let text = "상시/확인";
       if (finalDeadline.includes('확인')) text = "상시/확인";
       else if (finalDeadline.includes('소진')) text = "예산소진시";
       else if (finalDeadline !== '상시모집' && finalDeadline.length <= 6) text = finalDeadline;
@@ -268,7 +272,7 @@ export default function Home() {
                   </div>
                   <div className="flex-1 flex flex-col justify-center bg-white z-10 p-12">
                     <div className="flex items-center gap-3 mb-6">
-                       <DDayBadge deadline={heroItem?.deadline_date} category={heroItem?.category} title={heroItem?.title} />
+                       <DDayBadge deadline={heroItem?.deadline_date} category={heroItem?.category} title={heroItem?.title} summary={heroItem?.summary} />
                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{heroItem?.category}</span>
                     </div>
                     <h2 className="font-black text-slate-900 tracking-tighter line-clamp-2 text-4xl mb-4 leading-tight">{parseTitle(heroItem?.title || '').title}</h2>
@@ -282,25 +286,21 @@ export default function Home() {
                   <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
                </div>
                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 shrink-0 z-10">
-                  <h3 className="font-black text-2xl tracking-tighter text-slate-900 italic">지금 뜨는 소식</h3>
+                  <h3 className="font-black text-2xl tracking-tighter text-slate-900 italic">지금 뜨는 공고</h3>
                   <span className="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full italic">HOT</span>
                </div>
                <div className="flex-1 flex flex-col justify-between mt-6 z-10">
                   {trendingList.map((item, idx) => (
-                    <LinkNext key={item.id} href={`/article/${item.id}`} className="group relative flex gap-5 items-start">
-                      <div className="flex-shrink-0">
-                         <span className="text-3xl font-black text-slate-200 group-hover:text-[#FF5C00] transition-colors leading-none tracking-tighter italic">
-                            {(idx + 1).toString().padStart(2, '0')}
-                         </span>
-                      </div>
-                      <div className="flex-1 min-w-0 pt-1">
-                         <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
-                         </div>
-                         <h4 className="text-[15px] font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#FF5C00] transition-colors tracking-tight">
-                            {parseTitle(item.title).title}
-                         </h4>
-                      </div>
+                    <LinkNext key={item.id} href={`/article/${item.id}`} className="group relative flex items-start border-b border-slate-50 last:border-0 py-3">
+                       <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
+                             <div className="w-1 h-1 rounded-full bg-slate-200 group-hover:bg-[#FF5C00]" />
+                          </div>
+                          <h4 className="text-[15px] font-black text-slate-900 line-clamp-2 leading-snug group-hover:text-[#FF5C00] transition-colors tracking-tight">
+                             {parseTitle(item.title).title}
+                          </h4>
+                       </div>
                     </LinkNext>
                   ))}
                </div>
@@ -308,25 +308,7 @@ export default function Home() {
           </section>
         )}
 
-        {activeTab === '지원 사업' && (
-          <section className="-mx-8 px-10 py-12 mb-12 bg-[#F4FDF8] rounded-[2.5rem]">
-             <div className="flex items-center gap-3 mb-10">
-                <span className="text-[#10b981] font-bold text-sm tracking-tight">실시간 기한 분석 시스템 가동 중</span>
-                <div className="w-2 h-2 rounded-full bg-[#10b981] animate-pulse" />
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {filteredItems.filter(i => i.category === '정부지원공고').slice(0, 3).map((item, idx) => (
-                   <LinkNext key={item.id} href={`/article/${item.id}`} className="bg-white rounded-2xl p-8 shadow-sm border border-emerald-100 hover:shadow-md transition-shadow flex flex-col justify-center h-[180px]">
-                      <div className="flex items-center gap-3 mb-4">
-                         <span className="text-4xl font-black text-emerald-100 italic">{idx + 1}</span>
-                         <div className="px-3 py-1 bg-[#10b981] text-white text-[11px] font-black rounded-full tracking-wider shadow-sm">D-DAY</div>
-                      </div>
-                      <h4 className="text-[17px] font-black text-slate-900 leading-snug line-clamp-2">{parseTitle(item.title).title}</h4>
-                   </LinkNext>
-                ))}
-             </div>
-          </section>
-        )}
+
 
         {activeTab === '뉴스·테크' && (
           <section className="-mx-8 px-12 py-14 mb-12 bg-[#FBF8FF] rounded-[2.5rem] relative overflow-hidden">
@@ -378,57 +360,160 @@ export default function Home() {
           </div>
         )}
 
-        {/* 2-COLUMN LIST FEED */}
-        <section className="space-y-8 pb-32">
-           <h2 className="text-3xl font-black tracking-tighter mb-8">전체 브리핑</h2>
-           
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-             {/* LEFT COLUMN: 정부지원공고 */}
-             <div className="flex flex-col">
-               <div className="flex items-end justify-between mb-4 px-2">
-                 <div className="flex items-center gap-3">
-                   <div className="w-1.5 h-6 bg-[#FF5C00]" />
-                   <h3 className="text-2xl font-black italic tracking-tighter">정부지원공고</h3>
-                 </div>
-                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">LIVE FEED</span>
-               </div>
-               <div className="h-[2px] bg-slate-900 mb-2" />
-               
-               <div className="flex flex-col">
-                 {filteredItems.filter(i => i.category === '정부지원공고').slice(0, visibleItems).map((item, idx) => {
-                    const { title, institution } = parseTitle(item.title);
-                    return (
-                    <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-4 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
-                       <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
-                       <div className="flex-1 min-w-0 pr-4 space-y-1.5">
-                          <h4 className="text-[16px] font-black text-slate-900 group-hover:text-[#FF5C00] transition-colors leading-relaxed line-clamp-2">{title}</h4>
-                          <div className="flex items-center gap-2">
-                             <p className="text-[12px] font-bold text-slate-400">{institution}</p>
-                             <span className="text-[10px] text-slate-200">|</span>
-                             <span className="text-[11px] font-medium text-slate-400">{new Date(item.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'})} 등록</span>
-                          </div>
-                       </div>
-                       <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} className="shadow-md shrink-0 scale-110 origin-right" />
-                    </LinkNext>
-                    );
-                 })}
-                 {filteredItems.filter(i => i.category === '정부지원공고').length === 0 && (
-                    <div className="py-12 text-center text-slate-400 font-medium text-sm">
-                       {activePill === '관심 분야' && selectedChips.length === 0 ? '우측 상단의 필터 옵션에서 관심 분야를 설정해주세요.' : 
-                        activePill === '찜하기' ? '아직 찜한 공고가 없습니다.' : 
-                        activePill === '오늘 등록' ? '오늘 새롭게 등록된 지원사업 공고가 없습니다.' : 
-                        '해당 조건의 공고가 없습니다.'}
+        {/* FEED SECTION */}
+        {activeTab === '지원 사업' ? (
+          /* 지원사업 탭: K-Startup 스타일 4칼럼 썸네일 카드 그리드 */
+          <section className="space-y-8 pb-32">
+            {/* 검색 엔진 */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <input 
+                    type="text" 
+                    placeholder="공고명, 키워드로 검색하세요" 
+                    value={searchQuery} 
+                    onChange={e => setSearchQuery(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-5 py-3.5 text-[14px] font-bold outline-none focus:bg-white focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5 transition-all" 
+                  />
+                </div>
+                <button 
+                  onClick={() => setShowFilter(!showFilter)} 
+                  className="px-6 py-3.5 bg-slate-900 text-white rounded-xl font-black text-[13px] tracking-wider hover:bg-slate-800 transition-colors shadow-sm shrink-0 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  필터
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-end justify-between">
+              <div>
+                <h2 className="text-3xl font-black tracking-tighter">전체 지원사업 공고</h2>
+                <p className="text-[12px] font-bold text-slate-400 mt-1">총 {filteredItems.filter(i => i.category === '정부지원공고').length}건</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {filteredItems.filter(i => i.category === '정부지원공고').slice(0, visibleItems).map((item) => {
+                const { title } = parseTitle(item.title);
+                const sectorMatch = item.summary?.match(/^\[(.*?)\]/);
+                const sector = sectorMatch ? sectorMatch[1] : '일반';
+                const sourceUrl = item.notice_url || '';
+                let sourceName = 'K-Startup';
+                try {
+                  if (sourceUrl.includes('k-startup')) sourceName = 'K-Startup';
+                  else if (sourceUrl.includes('mss.go.kr')) sourceName = '중소벤처기업부';
+                  else if (sourceUrl.includes('sbiz.or.kr')) sourceName = '소상공인시장진흥공단';
+                  else if (sourceUrl.includes('kised.or.kr')) sourceName = '창업진흥원';
+                  else if (sourceUrl.includes('innopolis')) sourceName = '연구개발특구';
+                  else if (sourceUrl && sourceUrl.startsWith('http')) sourceName = new URL(sourceUrl).hostname.replace('www.', '');
+                } catch { /* keep default */ }
+                return (
+                  <LinkNext key={item.id} href={`/article/${item.id}`} className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-slate-300 hover:shadow-xl transition-all">
+                    <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
+                      <img 
+                        src={item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=600&auto=format&fit=crop'} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                        alt={title}
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=600&auto=format&fit=crop'; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                      <div className="absolute top-2.5 left-2.5">
+                        <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} summary={item.summary} className="shadow-lg" />
+                      </div>
+                      <div className="absolute top-2.5 right-2.5">
+                        <span className="px-2 py-0.5 bg-black/50 backdrop-blur-sm text-white text-[9px] font-black rounded tracking-wider">{sector}</span>
+                      </div>
                     </div>
-                 )}
+                    <div className="p-4 space-y-2.5">
+                      <h4 className="text-[14px] font-black text-slate-900 leading-snug line-clamp-2 group-hover:text-[#FF5C00] transition-colors">{title}</h4>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 font-bold">
+                        <span className="text-[#FF5C00] font-black">{sourceName}</span>
+                        <span className="text-slate-200">|</span>
+                        <span>{new Date(item.created_at).toLocaleDateString('ko-KR', {year: 'numeric', month: '2-digit', day: '2-digit'})}</span>
+                      </div>
+                    </div>
+                  </LinkNext>
+                );
+              })}
+            </div>
+
+            {filteredItems.filter(i => i.category === '정부지원공고').length === 0 && (
+              <div className="py-20 text-center text-slate-400 font-medium text-sm">
+                {activePill === '관심 분야' && selectedChips.length === 0 ? '우측 상단의 필터 옵션에서 관심 분야를 설정해주세요.' : 
+                 activePill === '찜하기' ? '아직 찜한 공고가 없습니다.' : 
+                 activePill === '오늘 등록' ? '오늘 새롭게 등록된 지원사업 공고가 없습니다.' : 
+                 '해당 조건의 공고가 없습니다.'}
+              </div>
+            )}
+
+            {filteredItems.filter(i => i.category === '정부지원공고').length > visibleItems && (
+              <div className="pt-16 flex justify-center">
+                <button onClick={() => setVisibleItems(v => v + 20)} className="px-12 py-5 bg-white border-2 border-slate-200 rounded-2xl text-[13px] font-black uppercase tracking-[0.1em] text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-sm">
+                   더 보기 +
+                </button>
+              </div>
+            )}
+          </section>
+        ) : (
+          /* 전체 / 뉴스테크 탭: 기존 2칼럼 리스트 피드 */
+          <section className="space-y-8 pb-32">
+           <h2 className="text-3xl font-black tracking-tighter mb-8">
+             {activeTab === '뉴스·테크' ? '테크 & 인사이트 브리핑' : '전체 브리핑'}
+           </h2>
+           
+           <div className={`grid gap-16 ${activeTab === '뉴스·테크' ? 'grid-cols-1 max-w-4xl mx-auto' : 'grid-cols-1 lg:grid-cols-2'}`}>
+             {/* LEFT COLUMN: 정부지원공고 (전체 탭에서만 노출) */}
+             {activeTab === '전체' && (
+               <div className="flex flex-col">
+                 <div className="flex items-end justify-between mb-4 px-2">
+                   <div className="flex items-center gap-3">
+                     <div className="w-1.5 h-6 bg-[#FF5C00]" />
+                     <h3 className="text-2xl font-black italic tracking-tighter">정부지원공고</h3>
+                   </div>
+                   <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">LIVE FEED</span>
+                 </div>
+                 <div className="h-[2px] bg-slate-900 mb-2" />
+                 
+                 <div className="flex flex-col">
+                   {filteredItems.filter(i => i.category === '정부지원공고').slice(0, visibleItems).map((item, idx) => {
+                      const { title, institution } = parseTitle(item.title);
+                      return (
+                      <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-4 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
+                         <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
+                         <div className="flex-1 min-w-0 pr-4 space-y-1.5">
+                            <h4 className="text-[16px] font-black text-slate-900 group-hover:text-[#FF5C00] transition-colors leading-relaxed line-clamp-2">{title}</h4>
+                            <div className="flex items-center gap-2">
+                               <p className="text-[12px] font-bold text-slate-400">{institution}</p>
+                               <span className="text-[10px] text-slate-200">|</span>
+                               <span className="text-[11px] font-medium text-slate-400">{new Date(item.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'})} 등록</span>
+                            </div>
+                         </div>
+                         <DDayBadge deadline={item.deadline_date} category={item.category} title={item.title} summary={item.summary} className="shadow-md shrink-0 scale-110 origin-right" />
+                      </LinkNext>
+                      );
+                   })}
+                   {filteredItems.filter(i => i.category === '정부지원공고').length === 0 && (
+                      <div className="py-12 text-center text-slate-400 font-medium text-sm">
+                         {activePill === '관심 분야' && selectedChips.length === 0 ? '우측 상단의 필터 옵션에서 관심 분야를 설정해주세요.' : 
+                          activePill === '찜하기' ? '아직 찜한 공고가 없습니다.' : 
+                          activePill === '오늘 등록' ? '오늘 새롭게 등록된 지원사업 공고가 없습니다.' : 
+                          '해당 조건의 공고가 없습니다.'}
+                      </div>
+                   )}
+                 </div>
                </div>
-             </div>
+             )}
 
              {/* RIGHT COLUMN: 인사이트&뉴스 */}
              <div className="flex flex-col">
                <div className="flex items-end justify-between mb-4 px-2">
                  <div className="flex items-center gap-3">
                    <div className="w-1.5 h-6 bg-slate-900" />
-                   <h3 className="text-2xl font-black italic tracking-tighter">인사이트&뉴스</h3>
+                   <h3 className="text-2xl font-black italic tracking-tighter">
+                     {activeTab === '뉴스·테크' ? '글로벌 테크 & 비즈니스 인사이트' : '인사이트&뉴스'}
+                   </h3>
                  </div>
                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">GLOBAL ANALYSIS</span>
                </div>
@@ -451,7 +536,7 @@ export default function Home() {
                           </div>
                           <h4 className="text-[16px] font-black text-slate-900 group-hover:text-slate-600 transition-colors leading-relaxed line-clamp-2">{title}</h4>
                        </div>
-                       <svg className="w-5 h-5 text-slate-200 group-hover:text-slate-400 group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                       <svg className="w-5 h-5 text-slate-200 group-hover:text-slate-400 group-hover:translate-x-1 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
                     </LinkNext>
                     );
                  })}
@@ -475,7 +560,8 @@ export default function Home() {
                 </button>
              </div>
            )}
-        </section>
+          </section>
+        )}
       </main>
 
       {/* RIGHT SLIDING DRAWER: FILTER */}

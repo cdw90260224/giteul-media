@@ -58,32 +58,49 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
     const html = await res.text();
     const $ = cheerio.load(html);
     const targets: any[] = [];
-    $('a').each((_, el) => {
-      const link = $(el);
-      const attrVal = link.attr('onclick') || link.attr('href') || '';
-      const snMatch = attrVal.match(/pbancSn=(\d+)/) || attrVal.match(/go_view\('?(\d+)'?\)/);
-      if (snMatch) {
-        // [수정] 링크 텍스트뿐만 아니라 부모 li 전체에서 날짜 찾기 (더 정확함)
-        const parentLiText = link.closest('li').text().replace(/\s+/g, ' ').trim();
-        let extractedDate = null;
-        const dateMatch = parentLiText.match(/마감일자\s*(\d{4})[./-](\d{2})[./-](\d{2})/) || parentLiText.match(/(\d{4})[./-](\d{2})[./-](\d{2})/);
-        if (dateMatch) {
-          extractedDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
-        }
 
-        let title = link.find('p.tit, .tit, dt, strong').first().text().trim();
-        if (!title) title = link.text().trim();
-        
-        // 제목 정제 (원문의 메타데이터 제거)
-        title = title.replace(/새로운게시글|D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+|조회\s*[\d,]+/gi, '').replace(/\s+/g, ' ').trim();
-        
-        if (title && title.length > 5 && !targets.find(t => t.sn === snMatch[1])) {
-          targets.push({ 
-            title, 
-            sn: snMatch[1], 
-            url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${snMatch[1]}`,
-            rawDate: extractedDate 
-          });
+    // [핵심 수정] li 단위로 파싱하여 마감일자를 정확히 추출
+    $('li').each((_, el) => {
+      const li = $(el);
+      const liText = li.text().replace(/\s+/g, ' ').trim();
+      
+      // li 내부에서 공고 SN 추출
+      let sn: string | null = null;
+      li.find('a').each((_, aEl) => {
+        const attr = $(aEl).attr('onclick') || $(aEl).attr('href') || '';
+        const m = attr.match(/pbancSn=(\d+)/) || attr.match(/go_view\('?(\d+)'?\)/);
+        if (m) sn = m[1];
+      });
+      if (!sn) return;
+      
+      // 마감일자를 명시적으로 타겟 (등록일자, 시작일자와 혼동 방지)
+      let extractedDate: string | null = null;
+      const deadlineMatch = liText.match(/마감일자\s*(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+      if (deadlineMatch) {
+        extractedDate = `${deadlineMatch[1]}-${deadlineMatch[2]}-${deadlineMatch[3]}`;
+      }
+      
+      // 제목 추출
+      let title = li.find('p.tit, .tit, dt, strong').first().text().trim();
+      if (!title) {
+        const linkEl = li.find('a').first();
+        title = linkEl.find('p.tit, .tit, dt, strong').first().text().trim() || linkEl.text().trim();
+      }
+      
+      // 제목 정제 (원문의 메타데이터 제거)
+      title = title.replace(/새로운게시글|D-?\d+|D-DAY|마감일자\s*[\d-.]+|마감\s*[\d-.]+|조회\s*[\d,]+/gi, '').replace(/\s+/g, ' ').trim();
+      
+      if (title && title.length > 5 && !targets.find(t => t.sn === sn)) {
+        targets.push({ 
+          title, 
+          sn, 
+          url: `https://www.k-startup.go.kr/web/contents/bizpbanc-ongoing.do?schM=view&pbancSn=${sn}`,
+          rawDate: extractedDate 
+        });
+        if (extractedDate) {
+          console.log(`[LIST] ✅ "${title}" → 마감: ${extractedDate}`);
+        } else {
+          console.log(`[LIST] ⚠️ "${title}" → 마감일 미발견 (상세 페이지에서 재시도 예정)`);
         }
       }
     });
@@ -113,20 +130,107 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
         try {
             const sector = detectSector(item.title);
+
+            // [핵심] 상세 페이지 항상 스크래핑 — 마감일 + 신청대상/지원내용/접수기간 직접 추출
+            let confirmedDeadline = item.rawDate;
+            let parsedTarget: string | null = null;
+            let parsedBenefits: string | null = null;
+            let parsedSchedule: string | null = null;
+            let deepContext = '';
+
+            try {
+              console.log(`[Detail] 상세 페이지 딥 크롤링: ${item.sn}`);
+              const detailRes = await fetch(item.url, { headers: FETCH_HEADERS, cache: 'no-store' });
+              const detailHtml = await detailRes.text();
+              const $d = cheerio.load(detailHtml);
+              const detailText = $d('body').text().replace(/\s+/g, ' ');
+
+              // JS/시스템 코드 제거 후 구조화된 라벨-값 쌍 추출
+              $d('script, style, nav, header, footer, .gnb, .lnb').remove();
+              const structuredPairs: string[] = [];
+              $d('dt, th').each((_, el) => {
+                const label = $d(el).text().replace(/\s+/g, ' ').trim();
+                const value = $d(el).next().text().replace(/\s+/g, ' ').trim();
+                if (label && value && value.length > 2) {
+                  structuredPairs.push(`[${label}]: ${value.slice(0, 800)}`);
+                }
+              });
+              deepContext = structuredPairs.length > 0 
+                ? structuredPairs.join('\n\n')
+                : $d('main, .content, .view, article, .detail').first().text().replace(/\s+/g, ' ').trim().slice(0, 6000);
+
+              // 마감일 추출
+              if (!confirmedDeadline) {
+                const receptionMatch = detailText.match(/접수기간\s*(\d{4})[.\-/](\d{2})[.\-/](\d{2})\s*[~\-]\s*(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+                if (receptionMatch) {
+                  confirmedDeadline = `${receptionMatch[4]}-${receptionMatch[5]}-${receptionMatch[6]}`;
+                } else {
+                  const applyMatch = detailText.match(/신청기간\s*(\d{4})[.\-/](\d{2})[.\-/](\d{2})\s*[~\-\s]*(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+                  if (applyMatch) confirmedDeadline = `${applyMatch[4]}-${applyMatch[5]}-${applyMatch[6]}`;
+                }
+              }
+
+              // [직접 파싱] 신청대상 / 지원내용 / 접수기간을 라벨 기반으로 추출
+              const extractField = (labels: string[]): string | null => {
+                let result: string | null = null;
+                $d('dt, th, .tit, label').each((_, el) => {
+                  const label = $d(el).text().replace(/\s+/g, ' ').trim();
+                  for (const kw of labels) {
+                    if (label.includes(kw)) {
+                      const value = $d(el).next().text().replace(/\s+/g, ' ').trim();
+                      if (value && value.length > 2 && (!result || value.length > result.length)) {
+                        result = value.slice(0, 500);
+                      }
+                    }
+                  }
+                });
+                return result;
+              };
+
+              parsedTarget = extractField(['신청대상', '지원대상', '모집대상', '신청자격', '지원자격', '참여대상', '참가자격']);
+              parsedBenefits = extractField(['지원내용', '지원규모', '지원금액', '사업내용', '혜택', '지원사항']);
+              parsedSchedule = extractField(['접수기간', '신청기간', '모집기간']);
+
+              console.log(`[Detail] ✅ 크롤링 완료 | 대상: ${parsedTarget ? '✓' : '✗'} | 혜택: ${parsedBenefits ? '✓' : '✗'} | 일정: ${parsedSchedule ? '✓' : '✗'}`);
+              await sleep(1000);
+            } catch (detailErr: any) {
+              console.warn(`[Detail] 상세 페이지 스크래핑 실패: ${detailErr.message}`);
+            }
+
             const prompt = `당신은 대한민국 기업 지원사업 전문 큐레이터입니다. 
+
             [영구 지침]
             1. 현재 연도는 2026년입니다. 모든 날짜 판단의 기준은 2026년입니다.
-            2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 원문에서 '접수기간', '신청기간', '마감일' 등을 찾아 정확한 YYYY-MM-DD 날짜를 추출하세요. 추출된 마감일 [${item.rawDate || '알 수 없음'}] 이 있다면 반드시 사수하세요. 귀찮아서 '상시 접수'라고 쓰는 것을 엄격히 금지합니다.
-            3. 초기 크롤링 단계에서는 '상세 전략 리포트'나 '기자의 시선'을 절대 작성하지 마세요. (사용자 요청 시 별도 생성 예정)
-            4. 카테고리는 반드시 '정부지원공고'로 설정하세요. 
+            2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 추출된 마감일 [${confirmedDeadline || '알 수 없음'}] 이 있다면 반드시 사수하세요. 귀찮아서 '상시 접수'라고 쓰는 것을 엄격히 금지합니다.
+            3. 초기 크롤링 단계에서는 '상세 전략 리포트'나 '기자의 시선'을 절대 작성하지 마세요.
+            4. 카테고리는 반드시 '정부지원공고'로 설정하세요.
 
-            제공된 원문에서 핵심 정보만 추출하여 간결한 요약 보고서를 작성하세요.
+            [절대 금지사항]
+            - "알 수 없음", "정보 없음", "확인 필요", "예상됩니다", "추정됩니다", "것으로 보입니다", "추론" 같은 추측성·면피성 문구를 절대 사용하지 마세요.
+            - 원문에 없는 정보는 아예 언급하지 마세요.
+
+            [content 작성 규칙]
+            지원대상, 지원혜택, 접수일정은 이미 별도 UI에 표시되므로 content에서 반복하지 마세요.
+            content에는 다음을 중심으로 마크다운(### H3 헤더)으로 작성하세요:
+            - 사업 개요 및 취지
+            - 트랙/유형별 세부 내용 (있는 경우)
+            - 선정절차 및 평가 방법
+            - 신청 방법 및 제출 서류
+            - 유의사항 및 제외 대상
 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
-            JSON 구조: { "title": "공고명을 깔끔하게 정제한 제목", "summary": "3줄 이내의 간결한 요약", "category": "정부지원공고", "content": "마크다운 형식의 기본 공고 정보 (지원대상, 혜택, 일정)", "deadline": "YYYY-MM-DD (날짜를 찾을 수 없는 경우에만 null)", "sector": "${sector}", "image_keyword": "business" }
+            JSON 구조: { 
+              "title": "공고명을 깔끔하게 정제한 제목", 
+              "summary": "3줄 이내의 간결한 요약", 
+              "category": "정부지원공고", 
+              "content": "마크다운 기사 본문 (위 작성 규칙 준수)", 
+              "deadline": "YYYY-MM-DD (날짜를 찾을 수 없는 경우에만 null)", 
+              "sector": "${sector}"
+            }
 
             입력 원천 데이터: ${item.title}
-            공고URL: ${item.url}`;
+            공고URL: ${item.url}
+            ${deepContext ? `\n[상세 본문]\n${deepContext}` : ''}`;
 
             const aiResponse = await callGeminiSafe(prompt);
             let jsonStr = aiResponse.trim();
@@ -134,8 +238,8 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const raw = JSON.parse(jsonStr);
 
             const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            // AI가 준 날짜보다 우리가 파싱한 날짜가 더 신뢰도 높을 수 있음 (우선순위 부여)
-            let finalDeadline = (raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : (item.rawDate || null);
+            // 우리가 파싱한 날짜가 무조건 최우선. AI 날짜는 최후의 수단.
+            let finalDeadline = confirmedDeadline || ((raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : null);
 
             if (finalDeadline) {
               const today = new Date();
@@ -143,10 +247,12 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               const deadlineDate = new Date(finalDeadline);
               
               if (deadlineDate < today) {
-                console.warn(`[Pipeline] Hallucination detected or Expired: ${raw.title} (Extracted: ${finalDeadline}). Setting to null.`);
+                console.warn(`[Pipeline] Expired deadline: ${raw.title} (${finalDeadline}). Setting to null.`);
                 finalDeadline = null;
               }
             }
+            
+            console.log(`[Pipeline] 최종: 마감=${finalDeadline || 'NULL'} | 대상=${parsedTarget ? 'OK' : 'NULL'} | 혜택=${parsedBenefits ? 'OK' : 'NULL'}`);
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
             
@@ -160,7 +266,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const randomImgId = imageIds[Math.floor(Math.random() * imageIds.length)];
             const imageUrl = `https://images.unsplash.com/photo-${randomImgId}?q=80&w=1000&auto=format&fit=crop`;
 
-            // 기존 데이터가 있으면 Update(Upsert), 없으면 Insert
+            // target/benefits/schedule은 K-Startup 원본 데이터 직접 사용 (AI 추측 아님)
             const postData = {
               title: raw.title, 
               summary: `[${raw.sector || sector}] ` + raw.summary, 
@@ -169,6 +275,9 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               notice_url: item.url, 
               image_url: imageUrl,
               deadline_date: finalDeadline, 
+              target: parsedTarget,
+              benefits: parsedBenefits,
+              schedule: parsedSchedule,
               created_at: new Date().toISOString()
             };
 

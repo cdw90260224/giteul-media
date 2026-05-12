@@ -437,14 +437,10 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
                   if (isAttachmentHeader) {
                     return (
-                      <div className="mt-20 mb-8 p-10 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl">📎</div>
-                          <h3 className="text-2xl font-black text-slate-900 tracking-tighter m-0" {...props}>
-                            {props.children}
-                          </h3>
-                        </div>
-                        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1">Official Documents & Forms</div>
+                      <div className="mt-16 mb-6">
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tight" {...props}>
+                          {headerText.replace(/[📎\s]/g, '') === '첨부파일' ? '첨부파일' : headerText.replace('📎', '').trim()}
+                        </h3>
                       </div>
                     );
                   }

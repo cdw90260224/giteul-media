@@ -40,8 +40,8 @@ export function generateUnifiedNewsletterHtml(email: string, sections: { sector:
               <p style="margin: 0 0 15px 0; color: #64748b; font-size: 13px; line-height: 1.6;">${item.summary.replace(/^\[.*?\]\s*/, '')}</p>
               ${item.content.includes('### 📎 첨부파일') ? `
                 <div style="margin-bottom: 15px; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
-                  <div style="font-size: 11px; color: #94a3b8; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px;">📎 Attachments</div>
-                  ${item.content.split('### 📎 첨부파일')[1].split('\n\n')[0].split('\n').filter(line => line.startsWith('- ')).map(line => {
+                  <div style="font-size: 11px; color: #94a3b8; font-weight: 900; margin-bottom: 8px; letter-spacing: 1px;">첨부파일</div>
+                  ${item.content.split('### 📎 첨부파일')[1].split('\n\n')[0].split('\n').filter((line: string) => line.startsWith('- ')).map((line: string) => {
                     const match = line.match(/\[(.*?)\]\((.*?)\)/);
                     if (match) {
                       return `<div style="margin-bottom: 5px;"><a href="${match[2]}" style="font-size: 12px; color: #1e293b; text-decoration: none; font-weight: 700;">• ${match[1]}</a></div>`;

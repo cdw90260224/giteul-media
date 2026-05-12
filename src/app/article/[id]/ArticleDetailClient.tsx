@@ -485,6 +485,10 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 ),
                 a: ({node, ...props}) => {
                   const isDownload = props.href?.includes('fileDownload') || props.href?.includes('download') || props.href?.includes('afile');
+                  let downloadHref = props.href;
+                  if (isDownload && downloadHref && downloadHref.startsWith('http')) {
+                    downloadHref = `/api/proxy-download?url=${encodeURIComponent(downloadHref)}`;
+                  }
                   if (isDownload) {
                     return (
                       <a 
@@ -492,6 +496,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                         target="_blank"
                         rel="noopener noreferrer"
                         {...props}
+                        href={downloadHref}
                       >
                         <span className="opacity-40 group-hover:opacity-100 transition-opacity">📥</span>
                         {props.children}

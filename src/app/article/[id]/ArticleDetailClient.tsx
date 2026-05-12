@@ -419,6 +419,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 h3: ({node, ...props}) => {
                   const headerText = Array.isArray(props.children) ? props.children.join('') : String(props.children);
                   const isReporterHeader = headerText.includes('기자의 시선');
+                  const isAttachmentHeader = headerText.includes('첨부파일');
+
                   if (isReporterHeader) {
                     return (
                       <div className="mt-24 mb-6 flex flex-col gap-2">
@@ -432,6 +434,21 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                       </div>
                     );
                   }
+
+                  if (isAttachmentHeader) {
+                    return (
+                      <div className="mt-20 mb-8 p-10 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl">📎</div>
+                          <h3 className="text-2xl font-black text-slate-900 tracking-tighter m-0" {...props}>
+                            {props.children}
+                          </h3>
+                        </div>
+                        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1">Official Documents & Forms</div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <h3 className="text-2xl font-black text-[#002B5B] mt-16 mb-6 flex items-center gap-3" {...props}>
                       <div className="w-2 h-6 bg-blue-500 rounded-full" />
@@ -468,7 +485,24 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                       {props.children}
                     </div>
                   </div>
-                )
+                ),
+                a: ({node, ...props}) => {
+                  const isDownload = props.href?.includes('fileDownload') || props.href?.includes('download') || props.href?.includes('afile');
+                  if (isDownload) {
+                    return (
+                      <a 
+                        className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black text-[13px] hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm no-underline group mb-2 mr-2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        {...props}
+                      >
+                        <span className="opacity-40 group-hover:opacity-100 transition-opacity">📥</span>
+                        {props.children}
+                      </a>
+                    );
+                  }
+                  return <a className="text-blue-600 hover:underline font-bold" target="_blank" rel="noopener noreferrer" {...props} />;
+                }
               }}
             >
               {post.content}

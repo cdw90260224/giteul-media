@@ -507,7 +507,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 }
               }}
             >
-              {post.content}
+              {post.content.replace(/### 📎 첨부파일[\s\S]*/, (match: string) => match.replace(/^- /gm, ''))}
             </ReactMarkdown>
           </div>
         </div>

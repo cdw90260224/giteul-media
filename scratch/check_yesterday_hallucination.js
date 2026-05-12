@@ -1,30 +1,39 @@
 const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const env = fs.readFileSync('.env.local', 'utf8');
-const getEnv = (key) => env.match(new RegExp(`${key}=(.*)`))?.[1]?.trim();
-const supabase = createClient(getEnv('NEXT_PUBLIC_SUPABASE_URL'), getEnv('SUPABASE_SERVICE_ROLE_KEY'));
+require('dotenv').config({ path: '.env.local' });
 
-async function checkYesterday() {
-    console.log('--- Checking Yesterday\'s Posts (April 22) for Hallucinations ---');
-    const { data } = await supabase.from('posts')
-        .select('id, title, summary, content, notice_url, created_at')
-        .gte('created_at', '2026-04-22')
-        .lt('created_at', '2026-04-23')
-        .order('created_at', {ascending:false});
-    
-    data.forEach(p => {
-        const hasFinished = p.title.includes('완료') || p.summary.includes('완료') || p.content.includes('완료') || 
-                            p.title.includes('마감') || p.summary.includes('마감') || p.content.includes('마감');
-        if (hasFinished) {
-            console.log(`\nID: ${p.id}`);
-            console.log(`TITLE: ${p.title}`);
-            console.log(`SUMMARY: ${p.summary}`);
-            const index = p.content.indexOf('마감');
-            if (index > -1) {
-                console.log(`CONTENT CLIP: ...${p.content.slice(index - 50, index + 50)}...`);
-            }
-        }
-    });
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+async function check() {
+  // 어제~오늘 등록된 기사 조회
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, title, category, deadline_date, created_at, summary')
+    .gte('created_at', yesterday.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error(error); return; }
+
+  console.log(`=== 최근 등록 기사 ${data.length}건 ===\n`);
+  
+  let nullCount = 0;
+  for (const p of data) {
+    const deadlineStatus = p.deadline_date ? p.deadline_date : '❌ NULL (미정)';
+    if (!p.deadline_date) nullCount++;
+    console.log(`[${p.id}] ${p.title}`);
+    console.log(`   카테고리: ${p.category} | 마감: ${deadlineStatus}`);
+    console.log(`   등록일: ${p.created_at}`);
+    console.log('');
+  }
+  
+  console.log(`\n--- 요약 ---`);
+  console.log(`전체: ${data.length}건 | 미정(NULL): ${nullCount}건 | 정상: ${data.length - nullCount}건`);
 }
 
-checkYesterday();
+check();

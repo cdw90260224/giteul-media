@@ -73,6 +73,33 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState<number[]>([]);
 
   useEffect(() => {
+    // Restore state from sessionStorage
+    if (typeof window !== 'undefined') {
+      const savedTab = sessionStorage.getItem('giteul_active_tab');
+      if (savedTab && ['전체', '지원 사업', '뉴스·테크'].includes(savedTab)) {
+        setActiveTab(savedTab as any);
+      }
+      
+      const savedPill = sessionStorage.getItem('giteul_active_pill');
+      if (savedPill) setActivePill(savedPill);
+      
+      const savedChips = sessionStorage.getItem('giteul_selected_chips');
+      if (savedChips) {
+        try { setSelectedChips(JSON.parse(savedChips)); } catch (e) { }
+      }
+      
+      const savedSearch = sessionStorage.getItem('giteul_search_query');
+      if (savedSearch) setSearchQuery(savedSearch);
+      
+      const savedVisible = sessionStorage.getItem('giteul_visible_items');
+      if (savedVisible) setVisibleItems(parseInt(savedVisible, 10));
+
+      const savedBookmarks = localStorage.getItem('antigravity_bookmarks');
+      if (savedBookmarks) {
+        try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { }
+      }
+    }
+
     fetchData();
     const msgs = ["포털 초기화 중...", "산업별 데이터 정리 중...", "최신 전략 리포트 동기화 중..."];
     let i = 0;
@@ -81,14 +108,19 @@ export default function Home() {
       i++;
     }, 1200);
     
-    if (typeof window !== 'undefined') {
-      const savedBookmarks = localStorage.getItem('antigravity_bookmarks');
-      if (savedBookmarks) {
-        try { setBookmarks(JSON.parse(savedBookmarks)); } catch (e) { }
-      }
-    }
     return () => clearInterval(interval);
   }, []);
+
+  // Persist state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('giteul_active_tab', activeTab);
+      sessionStorage.setItem('giteul_active_pill', activePill);
+      sessionStorage.setItem('giteul_selected_chips', JSON.stringify(selectedChips));
+      sessionStorage.setItem('giteul_search_query', searchQuery);
+      sessionStorage.setItem('giteul_visible_items', visibleItems.toString());
+    }
+  }, [activeTab, activePill, selectedChips, searchQuery, visibleItems]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -694,7 +726,7 @@ export default function Home() {
                 e.preventDefault(); 
                 if(userEmail.includes('@')) { 
                   try {
-                    await supabase.from('subscribers').insert([{ email: userEmail, sectors: interestSectors }]);
+                    await supabase.from('subscribers').insert([{ email: userEmail, interests: interestSectors }]);
                     setIsSubscribed(true); 
                     setIsEmailGateOpen(false); 
                   } catch (err) { console.error(err); }

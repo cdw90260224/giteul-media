@@ -439,7 +439,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                     return (
                       <div className="mt-16 mb-6">
                         <h3 className="text-2xl font-black text-slate-900 tracking-tight" {...props}>
-                          {headerText.replace(/[📎\s]/g, '') === '첨부파일' ? '첨부파일' : headerText.replace('📎', '').trim()}
+                          {headerText.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').replace('첨부파일', '').trim() === '' ? '첨부파일' : headerText.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim()}
                         </h3>
                       </div>
                     );

@@ -176,7 +176,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
                 }
               }
 
-              // [직접 파싱] 신청대상 / 지원내용 / 접수기간을 라벨 기반으로 추출
+              // [직접 파싱] 신청대상 / 지원내용 / 접수기간 / 첨부파일 추출
               const extractField = (labels: string[]): string | null => {
                 let result: string | null = null;
                 $d('dt, th, .tit, label').each((_, el) => {
@@ -197,7 +197,24 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               parsedBenefits = extractField(['지원내용', '지원규모', '지원금액', '사업내용', '혜택', '지원사항']);
               parsedSchedule = extractField(['접수기간', '신청기간', '모집기간']);
 
-              console.log(`[Detail] ✅ 크롤링 완료 | 대상: ${parsedTarget ? '✓' : '✗'} | 혜택: ${parsedBenefits ? '✓' : '✗'} | 일정: ${parsedSchedule ? '✓' : '✗'}`);
+              // [첨부파일 추출]
+              const attachments: {name: string, url: string}[] = [];
+              $d('a.file_bg').each((_, el) => {
+                const fileName = $d(el).text().trim();
+                const downloadBtn = $d(el).parent().find('a.btn_down:not(.btn_downAll)');
+                let href = downloadBtn.attr('href');
+                if (fileName && href) {
+                  if (!href.startsWith('http')) href = `https://www.k-startup.go.kr${href}`;
+                  attachments.push({ name: fileName, url: href });
+                }
+              });
+
+              if (attachments.length > 0) {
+                const attachmentMd = "\n\n### 📎 첨부파일\n" + attachments.map(a => `- [${a.name}](${a.url})`).join('\n');
+                deepContext += attachmentMd; // AI에게도 정보를 줌
+              }
+
+              console.log(`[Detail] ✅ 크롤링 완료 | 대상: ${parsedTarget ? '✓' : '✗'} | 혜택: ${parsedBenefits ? '✓' : '✗'} | 파일: ${attachments.length}개`);
               await sleep(1000);
             } catch (detailErr: any) {
               console.warn(`[Detail] 상세 페이지 스크래핑 실패: ${detailErr.message}`);
@@ -223,6 +240,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             - 선정절차 및 평가 방법
             - 신청 방법 및 제출 서류
             - 유의사항 및 제외 대상
+            - [중요] 만약 원천 데이터에 '### 📎 첨부파일' 섹션이 있다면, 이를 본문 가장 하단에 절대 누락하지 말고 그대로 포함시키세요.
 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
             JSON 구조: { 

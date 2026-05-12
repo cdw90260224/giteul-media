@@ -435,6 +435,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                     );
                   }
 
+                  // Attachment header styling (Clean version - No icons)
                   if (isAttachmentHeader) {
                     return (
                       <div className="mt-16 mb-6">

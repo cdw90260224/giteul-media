@@ -558,7 +558,7 @@ export default function Home() {
                     <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-5 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
                        <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
                        <div className="w-14 h-14 bg-slate-100 shrink-0 overflow-hidden border border-slate-200 rounded-lg shadow-sm">
-                          <img src={item.image_url} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                          <img src={item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=100&auto=format&fit=crop'} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=100&auto=format&fit=crop'; }} />
                        </div>
                        <div className="flex-1 min-w-0 pr-4 space-y-1.5">
                           <div className="flex items-center gap-2 mb-0.5">

@@ -639,17 +639,17 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         {!isSubscribed && (
           <button 
             onClick={() => setShowEmailModal(true)}
-            className="w-14 h-14 bg-blue-600 shadow-2xl rounded-2xl flex items-center justify-center text-white hover:bg-blue-500 hover:scale-110 transition-all group relative"
+            className="w-14 h-14 bg-slate-900 shadow-2xl rounded-2xl flex items-center justify-center text-white hover:bg-slate-800 hover:scale-110 transition-all group relative"
           >
             <svg className="w-7 h-7 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
             <div className="absolute right-full mr-4 bg-slate-900 text-white px-4 py-2 rounded-xl text-[11px] font-black whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
-              매일 아침 전략 리포트 받기 🚀
+              뉴스레터 구독하기 <span className="text-[#FF5C00] ml-1">→</span>
             </div>
           </button>
         )}
         <button 
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="w-14 h-14 bg-white shadow-2xl rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all group"
+          className="w-14 h-14 bg-white shadow-2xl rounded-2xl border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all group"
         >
           <svg className="w-6 h-6 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
         </button>
@@ -659,49 +659,56 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       {showEmailModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowEmailModal(false)} />
-           <div className="relative w-full max-w-lg bg-white rounded-[3.5rem] p-12 shadow-2xl animate-scale-in text-center space-y-8">
+           <div className="relative w-full max-w-lg bg-white rounded-[3.5rem] p-12 shadow-2xl animate-scale-in text-center space-y-8 max-h-[90vh] overflow-y-auto hide-scrollbar">
               <div className="flex justify-center">
-                 <div className="w-20 h-20 rounded-[2rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black italic shadow-2xl shadow-blue-500/20">G</div>
+                 <div className="w-20 h-20 rounded-[2rem] bg-slate-900 flex items-center justify-center text-white text-4xl font-black italic shadow-2xl shadow-slate-900/20">G</div>
               </div>
-              <div className="space-y-3 text-center">
+              <div className="space-y-3">
                 <h3 className="text-3xl font-black text-slate-900 tracking-tighter">기틀 지능형 뉴스레터</h3>
-                <p className="text-slate-500 font-medium leading-relaxed">
-                  구독 한 번으로 프리미엄 비즈니스 인사이트를<br/>매일 아침 무료로 받아보세요.
-                </p>
+                <p className="text-[14px] text-slate-500 font-bold leading-relaxed">상위 1% 비즈니스 리더를 위한<br/>맞춤형 지원사업 및 전략 리포트</p>
               </div>
 
               <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이메일 구독 시 제공되는 혜택</p>
+                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">이메일 구독 시 즉시 제공되는 4가지 프리미엄 혜택</p>
                  {[
-                   { id: 'strategy', label: "AI 기반 '합격 전략 리포트' 전체 공개 🔒" },
-                   { id: 'newsletter', label: "매일 아침 맞춤형 지능형 뉴스레터 발송 ✉️" },
-                   { id: 'bookmarks', label: "관심 공고 북마크 및 데드라인 알림 ⏰" }
+                   { id: 'intelligence', title: "경쟁사보다 빠른 '아침 인텔리전스' ☕", desc: '남들이 공고 사이트를 뒤적일 때, 매일 아침 메일함에 꽂힌 심층 리포트로 하루를 시작하세요.' },
+                   { id: 'scanner', title: 'AI 맞춤형 지원금 스캐너 💡', desc: '수만 개의 공고 중 내 산업 분야에 숨어있는 눈먼 정부지원금을 AI가 싹 다 찾아드립니다.' },
+                   { id: 'reading', title: '첨부파일 딥 리딩 (Deep-Reading) 📑', desc: '귀찮은 한글/PDF 공고문 확인 끝. 숨겨진 합격 가점과 우대사항만 1분 만에 짚어냅니다.' },
+                   { id: 'deadline', title: '놓칠 수 없는 마감일 철통 방어 🛡️', desc: '바빠서 아까운 지원금을 날리는 일이 없도록, 가장 중요한 데드라인 타이밍을 관리해 드립니다.' }
                  ].map(benefit => (
-                    <div key={benefit.id} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">✓</div>
-                        <p className="text-[13.5px] font-black tracking-tight text-slate-900">{benefit.label}</p>
+                    <div key={benefit.id} className="w-full flex flex-col p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-3 mb-1.5">
+                           <div className="w-5 h-5 rounded-full bg-slate-900 text-[#FF5C00] flex items-center justify-center text-[10px] font-black">✓</div>
+                           <p className="text-[14px] font-black tracking-tight text-slate-900">{benefit.title}</p>
+                        </div>
+                        <p className="text-[12.5px] text-slate-500 font-bold leading-relaxed pl-8 tracking-tight">{benefit.desc}</p>
                     </div>
                  ))}
               </div>
 
-              <div className="space-y-5">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left ml-2">관심 산업 분야 <span className="font-normal">(다중 선택 가능)</span></p>
-                <div className="flex flex-wrap gap-2">
-                  {['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'].map(sector => (
-                    <button 
-                      key={sector}
-                      type="button"
-                      onClick={() => {
-                        setInterestSectors(prev => 
-                          prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
-                        );
-                      }}
-                      className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
-                    >
-                      {sector}
-                    </button>
-                  ))}
-                </div>
+              <div className="text-left space-y-6">
+                 {[
+                   { title: '산업 분야', tags: ['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'] },
+                   { title: '지원 형태', tags: ['R&D 지원', '사업화 자금', '마케팅 바우처', '공간/인프라', '멘토링/컨설팅', '글로벌/수출'] },
+                   { title: '기업 규모', tags: ['예비창업자', '초기스타트업', '도약/스케일업', '소상공인', '중소기업'] }
+                 ].map(category => (
+                   <div key={category.title} className="space-y-3">
+                     <p className="text-[12px] font-black text-slate-900 ml-2">
+                       {category.title} {category.title === '산업 분야' && <span className="text-slate-400 font-normal">(다중 선택 가능)</span>}
+                     </p>
+                     <div className="flex flex-wrap gap-2">
+                        {category.tags.map(tag => (
+                          <button
+                            key={tag} type="button"
+                            onClick={() => setInterestSectors(prev => prev.includes(tag) ? prev.filter(s => s !== tag) : [...prev, tag])}
+                            className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(tag) ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                     </div>
+                   </div>
+                 ))}
               </div>
 
               <form onSubmit={handleSubscribe} className="space-y-4">
@@ -709,18 +716,15 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   type="email" 
                   required 
                   placeholder="뉴스레터를 받을 이메일 주소" 
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-blue-600 outline-none transition-all shadow-sm" 
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-5 text-lg font-bold focus:border-slate-900 outline-none transition-all shadow-sm text-slate-900" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                 />
-                 <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all">프리미엄 혜택 시작하기 →</button>
+                 <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all">프리미엄 혜택 시작하기 →</button>
               </form>
-              <div className="pt-4 border-t border-slate-50">
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">Coming Soon: Google One-tap Login</p>
+              <div className="pt-2 border-t border-slate-50">
+                <button onClick={() => setShowEmailModal(false)} className="text-slate-400 text-sm font-bold hover:text-slate-900 transition-colors mt-4">다음에 할게요</button>
               </div>
-              <button onClick={() => setShowEmailModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
            </div>
         </div>
       )}

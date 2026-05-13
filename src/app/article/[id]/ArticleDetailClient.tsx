@@ -487,8 +487,6 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                     return (
                       <a 
                         className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black text-[13px] hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm no-underline group mb-2 mr-2"
-                        target="_blank"
-                        rel="noopener noreferrer"
                         {...props}
                         href={downloadHref}
                       >

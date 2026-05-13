@@ -23,31 +23,23 @@ export async function GET() {
       .from('posts')
       .select('id, title, content, summary')
       .eq('category', '정부지원공고')
+      .not('content', 'ilike', '%### 📋 AI 자가진단 체크리스트%')
       .order('created_at', { ascending: false });
 
     if (fetchErr) throw fetchErr;
 
     let updatedCount = 0;
-    let skippedCount = 0;
     const startTime = Date.now();
 
     for (const post of posts) {
-      // Vercel timeout protection (usually 60s max for Pro, 10s for Hobby)
-      // We aim to finish or pause at 50s
+      // Vercel timeout protection
       if (Date.now() - startTime > 50000) {
         console.log('[Timeout Protection] Stopping partial backfill.');
         return NextResponse.json({ 
           message: 'Timeout protection: Partial complete. Please refresh to continue.', 
-          total_found: posts.length, 
-          updated: updatedCount, 
-          skipped: skippedCount,
-          remaining: posts.length - updatedCount - skippedCount
+          total_remaining: posts.length, 
+          updated_this_run: updatedCount
         });
-      }
-
-      if (post.content && post.content.includes('AI 자가진단 체크리스트')) {
-        skippedCount++;
-        continue;
       }
 
       console.log(`[Backfill] Processing: ${post.title}`);
@@ -91,9 +83,8 @@ export async function GET() {
 
     return NextResponse.json({ 
       message: 'All backfill completed successfully', 
-      total: posts.length, 
-      updated: updatedCount, 
-      skipped: skippedCount 
+      total_processed: posts.length, 
+      updated: updatedCount
     });
   } catch (err: any) {
     console.error('[Backfill Critical Error]', err.message);

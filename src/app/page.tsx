@@ -694,32 +694,46 @@ export default function Home() {
               </div>
 
               <div className="bg-slate-50 rounded-[2.5rem] p-8 text-left space-y-4 border border-slate-100 shadow-inner">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">이메일 구독 시 제공되는 혜택</p>
+                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">이메일 구독 시 즉시 제공되는 4가지 프리미엄 혜택</p>
                  {[
-                   { id: 'strategy', label: '심층 전략 리포트 열람 권한 🔒' },
-                   { id: 'newsletter', label: '매일 아침 맞춤형 지능형 뉴스레터 발송 ✉️' },
-                   { id: 'bookmarks', label: '관심 공고 북마크 및 데드라인 알림 ⏰' }
+                   { id: 'intelligence', title: "경쟁사보다 빠른 '아침 인텔리전스' ☕", desc: '남들이 공고 사이트를 뒤적일 때, 매일 아침 메일함에 꽂힌 심층 리포트로 하루를 시작하세요.' },
+                   { id: 'scanner', title: 'AI 맞춤형 지원금 스캐너 💡', desc: '수만 개의 공고 중 내 산업 분야에 숨어있는 눈먼 정부지원금을 AI가 싹 다 찾아드립니다.' },
+                   { id: 'reading', title: '첨부파일 딥 리딩 (Deep-Reading) 📑', desc: '귀찮은 한글/PDF 공고문 확인 끝. 숨겨진 합격 가점과 우대사항만 1분 만에 짚어냅니다.' },
+                   { id: 'deadline', title: '놓칠 수 없는 마감일 철통 방어 🛡️', desc: '바빠서 아까운 지원금을 날리는 일이 없도록, 가장 중요한 데드라인 타이밍을 관리해 드립니다.' }
                  ].map(benefit => (
-                    <div key={benefit.id} className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                        <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">✓</div>
-                        <p className="text-[13.5px] font-black tracking-tight text-slate-900">{benefit.label}</p>
+                    <div key={benefit.id} className="w-full flex flex-col p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:border-slate-300 transition-colors">
+                        <div className="flex items-center gap-3 mb-1.5">
+                           <div className="w-5 h-5 rounded-full bg-slate-900 text-[#FF5C00] flex items-center justify-center text-[10px] font-black">✓</div>
+                           <p className="text-[14px] font-black tracking-tight text-slate-900">{benefit.title}</p>
+                        </div>
+                        <p className="text-[12.5px] text-slate-500 font-bold leading-relaxed pl-8 tracking-tight">{benefit.desc}</p>
                     </div>
                  ))}
               </div>
 
-              <div className="text-left space-y-4">
-                 <p className="text-[12px] font-black text-slate-900 ml-2">관심 산업 분야 <span className="text-slate-400 font-normal">(다중 선택 가능)</span></p>
-                 <div className="flex flex-wrap gap-2">
-                    {['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'].map(sector => (
-                      <button
-                        key={sector} type="button"
-                        onClick={() => setInterestSectors(prev => prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector])}
-                        className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(sector) ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
-                      >
-                        {sector}
-                      </button>
-                    ))}
-                 </div>
+              <div className="text-left space-y-6">
+                 {[
+                   { title: '산업 분야', tags: ['AI/빅데이터', 'SaaS/플랫폼', '바이오/헬스케어', '친환경/에너지', '로봇/모빌리티', '소부장/제조', '핀테크/블록체인', '콘텐츠/게임', '푸드/애그테크'] },
+                   { title: '지원 형태', tags: ['R&D 지원', '사업화 자금', '마케팅 바우처', '공간/인프라', '멘토링/컨설팅', '글로벌/수출'] },
+                   { title: '기업 규모', tags: ['예비창업자', '초기스타트업', '도약/스케일업', '소상공인', '중소기업'] }
+                 ].map(category => (
+                   <div key={category.title} className="space-y-3">
+                     <p className="text-[12px] font-black text-slate-900 ml-2">
+                       {category.title} {category.title === '산업 분야' && <span className="text-slate-400 font-normal">(다중 선택 가능)</span>}
+                     </p>
+                     <div className="flex flex-wrap gap-2">
+                        {category.tags.map(tag => (
+                          <button
+                            key={tag} type="button"
+                            onClick={() => setInterestSectors(prev => prev.includes(tag) ? prev.filter(s => s !== tag) : [...prev, tag])}
+                            className={`px-3 py-2.5 rounded-xl text-[11.5px] font-black transition-all border-2 ${interestSectors.includes(tag) ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:text-slate-900'}`}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                     </div>
+                   </div>
+                 ))}
               </div>
 
               <form onSubmit={async (e) => { 

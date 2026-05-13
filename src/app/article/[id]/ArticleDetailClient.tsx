@@ -67,6 +67,103 @@ function UpgradeLoadingOverlay() {
   );
 }
 
+function EligibilityChecker({ questions }: { questions: string[] }) {
+  const [answers, setAnswers] = useState<Record<number, boolean | null>>({});
+
+  if (!questions || questions.length === 0) return null;
+
+  const answeredCount = Object.values(answers).filter(v => v !== null).length;
+  const isComplete = answeredCount === questions.length;
+  const noCount = Object.values(answers).filter(v => v === false).length;
+  const allYes = noCount === 0;
+
+  const getResultMessage = () => {
+    if (allYes) return {
+      title: '지원 적합도 99%! 완벽한 대상입니다.',
+      desc: '모든 필수 요건을 충족할 확률이 매우 높습니다. 하단의 전략 리포트를 확인하고 즉시 준비를 시작하세요!',
+      color: 'bg-green-50 border-green-200 text-green-800',
+      icon: '🎉'
+    };
+    if (noCount === 1) return {
+      title: '⚠️ 일부 요건 미달: 주의가 필요합니다.',
+      desc: '한 가지 항목이 충족되지 않습니다. 예외 조항을 확인하거나, 해당 요건을 보완할 방법이 있는지 원문을 다시 확인해 보세요.',
+      color: 'bg-orange-50 border-orange-200 text-orange-800',
+      icon: '⚠️'
+    };
+    if (noCount === 2) return {
+      title: '🚨 부적합 가능성 높음: 상세 확인 요망',
+      desc: '두 가지 핵심 요건이 미달인 상태입니다. 이대로는 지원이 어려울 수 있으니, 하단의 전략 분석 섹션에서 자격 보완 팁을 찾아보세요.',
+      color: 'bg-red-50 border-red-200 text-red-800',
+      icon: '🚨'
+    };
+    return {
+      title: '🚫 지원 불가 대상일 가능성이 매우 높습니다.',
+      desc: '핵심 자격 요건을 모두 충족하지 못하고 있습니다. 무리한 지원보다는 기틀이 추천하는 다른 적합한 공고를 찾아보시는 것을 권장합니다.',
+      color: 'bg-slate-100 border-slate-900 text-slate-900',
+      icon: '🚫'
+    };
+  };
+
+  const result = getResultMessage();
+
+  return (
+    <div className="my-10 bg-white border-2 border-slate-900 rounded-[2rem] p-8 md:p-10 shadow-xl overflow-hidden relative group">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF5C00]/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+      
+      <div className="flex items-center gap-4 mb-8 border-b-2 border-slate-100 pb-6">
+        <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div>
+          <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">AI 자격 요건 진단</h3>
+          <p className="text-slate-500 font-bold text-sm mt-1">본 공고의 핵심 자격 요건을 3초 만에 검증해 보세요.</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {questions.map((q, i) => (
+          <div key={i} className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl border-2 transition-all duration-300 ${answers[i] === true ? 'bg-orange-50 border-orange-200' : answers[i] === false ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-100 hover:border-slate-300'}`}>
+            <p className={`font-bold text-[15px] leading-relaxed flex-1 ${answers[i] === true ? 'text-slate-900' : answers[i] === false ? 'text-red-700' : 'text-slate-700'}`}>
+              <span className="text-[#FF5C00] font-black mr-2">Q{i+1}.</span>
+              {q.replace(/^- \[ \]\s*/, '').replace(/^- \s*/, '')}
+            </p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button 
+                onClick={() => setAnswers(prev => ({...prev, [i]: true}))}
+                className={`px-6 py-2.5 rounded-xl font-black text-sm tracking-widest transition-all ${answers[i] === true ? 'bg-[#FF5C00] text-white shadow-lg shadow-orange-500/30' : 'bg-white text-slate-400 border-2 border-slate-200 hover:border-[#FF5C00] hover:text-[#FF5C00]'}`}
+              >
+                YES
+              </button>
+              <button 
+                onClick={() => setAnswers(prev => ({...prev, [i]: false}))}
+                className={`px-6 py-2.5 rounded-xl font-black text-sm tracking-widest transition-all ${answers[i] === false ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-white text-slate-400 border-2 border-slate-200 hover:border-red-500 hover:text-red-500'}`}
+              >
+                NO
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isComplete && (
+        <div className={`mt-8 p-6 rounded-2xl border-2 animate-message-fade flex items-start gap-4 ${result.color}`}>
+          <div className="mt-1 shrink-0 text-xl">
+            {result.icon}
+          </div>
+          <div>
+            <h4 className="text-lg font-black tracking-tight mb-2">
+              {result.title}
+            </h4>
+            <p className="font-bold text-[14px] leading-relaxed">
+              {result.desc}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ArticleDetailClient({ id }: { id: string }) {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -258,6 +355,17 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
   const dDay = getDDay();
 
+  let mainContent = post?.content || '';
+  let eligibilityQuestions: string[] = [];
+  if (mainContent) {
+    const checklistRegex = /### 📋 AI 자가진단 체크리스트\n([\s\S]*?)(?=###|$)/;
+    const match = mainContent.match(checklistRegex);
+    if (match && match[1]) {
+      eligibilityQuestions = match[1].split('\n').filter((line: string) => line.trim().startsWith('- [ ]') || line.trim().startsWith('-'));
+      mainContent = mainContent.replace(checklistRegex, '');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-deep-navy selection:text-white">
       {upgrading && <UpgradeLoadingOverlay />}
@@ -342,6 +450,12 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             </div>
         </div>
       </header>
+
+      {eligibilityQuestions.length > 0 && (
+        <div className="print:hidden max-w-5xl mx-auto px-6 mb-12">
+          <EligibilityChecker questions={eligibilityQuestions} />
+        </div>
+      )}
 
       <div className="print:hidden max-w-5xl mx-auto px-6 mb-16">
         <div className="relative aspect-[21/9] w-full rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-[16px] border-white ring-1 ring-slate-100 bg-white">
@@ -502,7 +616,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 }
               }}
             >
-              {post.content.replace(/### 📎 첨부파일[\s\S]*/, (match: string) => match.replace(/^- /gm, ''))}
+              {mainContent.replace(/### 📎 첨부파일[\s\S]*/, (match: string) => match.replace(/^- /gm, ''))}
             </ReactMarkdown>
           </div>
         </div>

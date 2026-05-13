@@ -76,9 +76,6 @@ export async function GET() {
       } catch (aiErr) {
         console.error(`[Backfill] AI Error for ${post.id}:`, aiErr);
       }
-      
-      // Small pause to be polite to APIs
-      await new Promise(r => setTimeout(r, 500));
     }
 
     return NextResponse.json({ 

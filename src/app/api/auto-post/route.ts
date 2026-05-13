@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as cheerio from 'cheerio';
 import { after } from 'next/server';
+import { parseDocumentText } from '@/lib/document-parser';
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -211,7 +212,21 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
               if (attachments.length > 0) {
                 const attachmentMd = "\n\n### 📎 첨부파일\n" + attachments.map(a => `- [${a.name}](${a.url})`).join('\n');
-                deepContext += attachmentMd; // AI에게도 정보를 줌
+                deepContext += attachmentMd; // AI에게도 기본 링크 정보를 줌
+                
+                // 첨부파일 중 PDF와 HWP를 파싱 (최대 2개까지만)
+                const docFiles = attachments.filter(a => a.name.toLowerCase().endsWith('.pdf') || a.name.toLowerCase().endsWith('.hwp')).slice(0, 2);
+                for (const docFile of docFiles) {
+                  console.log(`[Document] 첨부파일 텍스트 파싱 시도: ${docFile.name}`);
+                  const docText = await parseDocumentText(docFile.url, docFile.name);
+                  if (docText && docText.length > 50) {
+                    const truncatedText = docText.slice(0, 8000); // 토큰 제한 방지
+                    deepContext += `\n\n--- [첨부파일 내부 텍스트: ${docFile.name}] ---\n${truncatedText}`;
+                    console.log(`[Document] 첨부파일 파싱 완료 (${docFile.name}) - ${truncatedText.length}자`);
+                  } else {
+                    console.log(`[Document] 파싱 실패 또는 내용이 너무 짧음 (${docFile.name})`);
+                  }
+                }
               }
 
               console.log(`[Detail] ✅ 크롤링 완료 | 대상: ${parsedTarget ? '✓' : '✗'} | 혜택: ${parsedBenefits ? '✓' : '✗'} | 파일: ${attachments.length}개`);
@@ -241,6 +256,12 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             - 신청 방법 및 제출 서류
             - 유의사항 및 제외 대상
             - [중요] 만약 원천 데이터에 '### 📎 첨부파일' 섹션이 있다면, 이를 본문 가장 하단에 절대 누락하지 말고 무조건 그대로 포함시키세요. (첨부파일은 사용자의 최우선 니즈이므로 없으면 생략하되, 존재한다면 100% 보장해서 포함할 것)
+            
+            [핵심 타겟 지시]
+            첨부파일 내부 텍스트와 본문 내용을 싹 다 읽고 다음 3가지를 무조건 뽑아서 기사 본문에 박아 넣으세요:
+            1) 최대 지원 금액 (명시되지 않은 경우 생략)
+            2) 세부 지원 자격 (업력, 나이, 지역 등 구체적인 요건)
+            3) 우대 사항 (가점 기준, 우대 대상 등)
 
             반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
             JSON 구조: { 

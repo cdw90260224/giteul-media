@@ -120,8 +120,8 @@ export async function processAndSendNewsletter() {
     if (interests.length === 0) continue;
 
     for (const interest of interests) {
-      const newsForSector = posts.filter(p => p.category !== '정부지원공고' && p.summary.includes(`[${interest}]`));
-      const supportForSector = posts.filter(p => p.category === '정부지원공고' && p.summary.includes(`[${interest}]`));
+      const newsForSector = posts.filter(p => p.category !== '정부지원공고' && p.summary.includes(interest));
+      const supportForSector = posts.filter(p => p.category === '정부지원공고' && p.summary.includes(interest));
       
       if (newsForSector.length > 0 || supportForSector.length > 0) {
         sections.push({

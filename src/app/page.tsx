@@ -32,7 +32,7 @@ function DDayBadge({ deadline, category, title, summary, className = "" }: { dea
   today.setHours(0,0,0,0);
 
   if (!finalDeadline || finalDeadline === '미정') {
-     return <span className={`px-2 py-1 bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>D-확인</span>;
+     return <span className={`px-2 py-1 bg-orange-50 text-[#FF5C00] border border-orange-100 text-[10px] font-black tracking-widest uppercase rounded-md ${className}`}>D-확인</span>;
   }
   
   const target = new Date(finalDeadline);
@@ -741,7 +741,7 @@ export default function Home() {
                 e.preventDefault(); 
                 if(userEmail.includes('@')) { 
                   try {
-                    await supabase.from('subscribers').insert([{ email: userEmail, interests: interestSectors }]);
+                    await supabase.from('subscribers').upsert({ email: userEmail, interests: interestSectors, created_at: new Date().toISOString() }, { onConflict: 'email' });
                     setIsSubscribed(true); 
                     setIsEmailGateOpen(false); 
                   } catch (err) { console.error(err); }

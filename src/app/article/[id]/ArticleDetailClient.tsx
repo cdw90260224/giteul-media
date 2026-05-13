@@ -10,7 +10,7 @@ function SectorBadge({ sector }: { sector: string }) {
   if (!sector || sector === '일반') return null;
   const colors: Record<string, string> = {
     '농업': 'bg-green-50 text-green-700 border-green-200',
-    '기술/IT': 'bg-blue-50 text-blue-700 border-blue-200',
+    '기술/IT': 'bg-orange-50 text-orange-700 border-orange-200',
     '소상공인': 'bg-orange-50 text-orange-700 border-orange-200'
   };
   const colorClass = colors[sector] || 'bg-slate-50 text-slate-700 border-slate-200';
@@ -42,10 +42,10 @@ function UpgradeLoadingOverlay() {
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center transition-all duration-500">
       <div className="relative w-40 h-40 mb-16">
-        <div className="absolute inset-0 rounded-full border-[6px] border-blue-500/10 border-t-blue-500 animate-spin" style={{ animationDuration: '1.5s' }} />
+        <div className="absolute inset-0 rounded-full border-[6px] border-[#FF5C00]/10 border-t-blue-500 animate-spin" style={{ animationDuration: '1.5s' }} />
         <div className="absolute inset-6 rounded-full border-[6px] border-indigo-400/10 border-b-indigo-400 animate-spin-reverse" style={{ animationDuration: '2s' }} />
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-5xl font-black text-blue-500 italic animate-pulse drop-shadow-[0_0_20px_rgba(59,130,246,0.5)]">G</span>
+          <span className="text-5xl font-black text-[#FF5C00] italic animate-pulse drop-shadow-[0_0_20px_rgba(255,92,0,0.5)]">G</span>
         </div>
       </div>
       <div className="space-y-8 max-w-xl">
@@ -55,11 +55,11 @@ function UpgradeLoadingOverlay() {
           </h2>
         </div>
         <div className="flex flex-col items-center gap-4">
-          <p className="text-blue-400 font-black tracking-[0.4em] text-[11px] uppercase animate-pulse">
+          <p className="text-[#FF5C00] font-black tracking-[0.4em] text-[11px] uppercase animate-pulse">
             Giteul Intelligence System Upgrading
           </p>
           <div className="w-72 h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
-            <div className="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-400 animate-loading-bar shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+            <div className="h-full bg-gradient-to-r from-[#FF5C00] via-orange-500 to-[#FF5C00] animate-loading-bar shadow-[0_0_15px_rgba(255,92,0,0.5)]" />
           </div>
         </div>
       </div>
@@ -101,7 +101,10 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       if (!id) return;
       try {
         const { data, error } = await supabase.from('posts').select('*').eq('id', id).maybeSingle();
-        if (!error && data) setPost(data);
+        if (!error && data) {
+          setPost(data);
+          document.title = `${data.title} | Giteul Intelligence`;
+        }
       } catch (e) { console.error(e); } finally { setLoading(false); }
     }
     fetchPostData();
@@ -228,10 +231,10 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       }
 
       const getNoDeadlineInfo = () => {
-        if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
+        if (isStrategy) return { label: 'STRATEGY', color: 'bg-[#FF5C00] text-white', text: 'AI 전략 리포트' };
         if (isTech) return { label: 'TECH', color: 'bg-purple-600 text-white', text: '테크 트렌드 리포트' };
         if (isMarket) return { label: 'MARKET', color: 'bg-teal-600 text-white', text: '기업/마켓 리포트' };
-        if (post.category === '정부지원공고') return { label: 'D-확인', color: 'bg-blue-600 text-white', text: '신규 지원공고' };
+        if (post.category === '정부지원공고') return { label: 'D-확인', color: 'bg-[#FF5C00] text-white', text: '신규 지원공고' };
         return { label: 'NEWS', color: 'bg-slate-400 text-white', text: '최신 뉴스 업데이트' };
       };
 
@@ -245,7 +248,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     
     const diff = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (isStrategy) return { label: 'STRATEGY', color: 'bg-blue-600 text-white', text: 'AI 전략 리포트' };
+    if (isStrategy) return { label: 'STRATEGY', color: 'bg-[#FF5C00] text-white', text: 'AI 전략 리포트' };
 
     if (diff === 0) return { label: 'D-DAY', color: 'bg-red-600 text-white', text: '실시간 마감 임박 알림' };
     if (diff < 0) return { label: 'EXPIRED', color: 'bg-gray-200 text-gray-500', text: '종료된 공고입니다' };
@@ -261,8 +264,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
       <nav className="print:hidden w-full bg-white/80 backdrop-blur-md border-b border-slate-50 sticky top-0 z-50 py-4 px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <Link href="/" className="group flex items-center gap-2">
-            <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-blue-600 transition-colors">기틀</span>
-            <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
+            <span className="text-3xl font-black text-slate-900 tracking-tighter group-hover:text-[#FF5C00] transition-colors">기틀</span>
+            <div className="w-2 h-2 rounded-full bg-[#FF5C00] group-hover:animate-ping" />
           </Link>
           <div className="flex items-center gap-6">
             <span className="bg-slate-900 text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
@@ -321,14 +324,14 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             </div>
 
 
-            <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[4rem] border border-slate-200/50 shadow-sm group hover:border-blue-200 transition-all duration-500 overflow-hidden">
+            <div className="relative mt-12 p-10 md:p-14 bg-[#F8FAFC] rounded-[4rem] border border-slate-200/50 shadow-sm group hover:border-orange-200 transition-all duration-500 overflow-hidden">
                 <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity select-none">
                     <span className="text-[12rem] font-black italic">REPORT</span>
                 </div>
                 <div className="relative z-10 space-y-8">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-px bg-blue-600" />
-                    <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.5em] block">Executive Briefing</span>
+                    <div className="w-10 h-px bg-[#FF5C00]" />
+                    <span className="text-[#FF5C00] text-[11px] font-black uppercase tracking-[0.5em] block">Executive Briefing</span>
                   </div>
                   <div className="text-lg md:text-xl text-slate-700 font-semibold leading-[1.9] tracking-tight summary-content prose prose-slate max-w-none">
                     <ReactMarkdown rehypePlugins={[rehypeRaw]}>
@@ -361,7 +364,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               {post.target && (
                 <div>
                   <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
-                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    <span className="text-[#FF5C00] opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                     🎯 지원 대상
                   </h2>
                   <p className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight">{post.target}</p>
@@ -370,13 +373,13 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               {post.benefits && (
                 <div>
                   <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
-                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    <span className="text-[#FF5C00] opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                     💰 지원 혜택
                   </h2>
                   <div className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight whitespace-pre-line">
                     {post.benefits.split(/[◦◇•·∙]/).filter(Boolean).map((line: string, i: number) => (
                       <div key={i} className="flex gap-4 mb-3">
-                        {i > 0 && <span className="text-blue-500 mt-0.5 shrink-0">✦</span>}
+                        {i > 0 && <span className="text-[#FF5C00] mt-0.5 shrink-0">✦</span>}
                         <span>{line.trim()}</span>
                       </div>
                     ))}
@@ -386,7 +389,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
               {post.schedule && (
                 <div>
                   <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mb-6 pb-6 border-b border-slate-100">
-                    <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                    <span className="text-[#FF5C00] opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                     📅 접수 일정
                   </h2>
                   <p className="text-[1.15rem] leading-[1.8] text-slate-700 font-medium tracking-tight">{post.schedule}</p>
@@ -404,7 +407,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 h2: ({node, ...props}) => {
                   return (
                     <h2 className="group flex items-center gap-4 text-3xl font-black text-slate-900 mt-20 mb-8 pt-12 border-t border-slate-100" {...props}>
-                      <span className="text-blue-600 opacity-20 group-hover:opacity-100 transition-opacity">/</span>
+                      <span className="text-[#FF5C00] opacity-20 group-hover:opacity-100 transition-opacity">/</span>
                       {props.children}
                     </h2>
                   );
@@ -418,8 +421,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                     return (
                       <div className="mt-24 mb-6 flex flex-col gap-2">
                          <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs italic border-2 border-blue-500 shadow-lg">G</div>
-                          <span className="text-blue-600 text-[11px] font-black uppercase tracking-[0.4em]">Expert Opinion</span>
+                          <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs italic border-2 border-[#FF5C00] shadow-lg">G</div>
+                          <span className="text-[#FF5C00] text-[11px] font-black uppercase tracking-[0.4em]">Expert Opinion</span>
                         </div>
                         <h3 className="text-3xl font-black text-slate-900 tracking-tight" {...props}>
                           {props.children}
@@ -441,7 +444,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
                   return (
                     <h3 className="text-2xl font-black text-[#002B5B] mt-16 mb-6 flex items-center gap-3" {...props}>
-                      <div className="w-2 h-6 bg-blue-500 rounded-full" />
+                      <div className="w-2 h-6 bg-[#FF5C00] rounded-full" />
                       {props.children}
                     </h3>
                   );
@@ -454,7 +457,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                 ),
                 li: ({node, ...props}) => (
                   <li className="flex gap-4 text-[1.2rem] text-slate-700 font-semibold" {...props}>
-                    <span className="text-blue-500 mt-1">✦</span>
+                    <span className="text-[#FF5C00] mt-1">✦</span>
                     <div className="flex-1">{props.children}</div>
                   </li>
                 ),
@@ -486,7 +489,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   if (isDownload) {
                     return (
                       <a 
-                        className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black text-[13px] hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm no-underline group mb-2 mr-2"
+                        className="inline-flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-700 font-black text-[13px] hover:border-[#FF5C00] hover:text-[#FF5C00] transition-all shadow-sm no-underline group mb-2 mr-2"
                         {...props}
                         href={downloadHref}
                       >
@@ -495,7 +498,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                       </a>
                     );
                   }
-                  return <a className="text-blue-600 hover:underline font-bold" target="_blank" rel="noopener noreferrer" {...props} />;
+                  return <a className="text-[#FF5C00] hover:underline font-bold" target="_blank" rel="noopener noreferrer" {...props} />;
                 }
               }}
             >
@@ -515,17 +518,17 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         )}
 
         {isGovSupport && !isStrategyPost && (
-            <div className="print:hidden mt-24 p-12 bg-slate-900 rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-blue-500/20 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="print:hidden mt-24 p-12 bg-slate-900 rounded-[4rem] text-center space-y-10 shadow-2xl border-4 border-[#FF5C00]/20 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-[#FF5C00]/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 <div className="space-y-4 relative z-10">
-                    <span className="text-blue-400 text-xs font-black uppercase tracking-[0.5em] animate-pulse italic">Professional Insight Upgrade</span>
+                    <span className="text-[#FF5C00] text-xs font-black uppercase tracking-[0.5em] animate-pulse italic">Professional Insight Upgrade</span>
                     <h4 className="text-white text-3xl font-black tracking-tighter leading-tight">이 공고의 '사업계획서 실전 전략' 정보가 아직 부족한가요?</h4>
                 </div>
                 <button 
                   onClick={handleUpgradeStrategy}
                   disabled={upgrading}
                   className={`inline-block px-12 py-7 rounded-2xl font-black text-xl tracking-widest transition-all shadow-2xl relative z-10
-                    ${upgrading ? 'bg-slate-700 text-white animate-pulse cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105 active:scale-95'}`}
+                    ${upgrading ? 'bg-slate-700 text-white animate-pulse cursor-wait' : 'bg-[#FF5C00] text-white hover:bg-[#FF5C00] hover:scale-105 active:scale-95'}`}
                 >
                     {upgrading ? '🚀 Gemini가 전략 리포트로 전면 개편 중...' : '[이 사업의 \'실시간 전략 리포트\' 생성하기 →]'}
                 </button>
@@ -611,7 +614,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-8">
           <div className="flex items-center gap-2">
             <span className="text-3xl font-black text-slate-900 tracking-tighter">기틀</span>
-            <div className="w-2 h-2 rounded-full bg-blue-600" />
+            <div className="w-2 h-2 rounded-full bg-[#FF5C00]" />
           </div>
           <p className="text-slate-500 text-xs font-bold tracking-widest max-w-md mx-auto leading-relaxed">
             기틀 AI 미디어는 정부지원사업과 테크 트렌드를 분석하여 창업가에게 최적의 인사이트를 제공합니다.

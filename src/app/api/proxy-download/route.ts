@@ -32,13 +32,11 @@ export async function GET(request: NextRequest) {
     const contentType = response.headers.get('content-type');
     const contentDisposition = response.headers.get('content-disposition');
     
+    const filename = searchParams.get('filename') || 'attachment.file';
     if (contentType) headers.set('Content-Type', contentType);
-    if (contentDisposition) {
-        // Decode encoded filenames if needed or just pass it through
-        headers.set('Content-Disposition', contentDisposition);
-    } else {
-        headers.set('Content-Disposition', 'attachment');
-    }
+    
+    // Force UTF-8 filename encoding to prevent Korean text garbling
+    headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
 
     return new NextResponse(response.body, {
       status: 200,

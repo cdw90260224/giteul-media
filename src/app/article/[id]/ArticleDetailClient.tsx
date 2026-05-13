@@ -480,7 +480,8 @@ export default function ArticleDetailClient({ id }: { id: string }) {
                   const isDownload = props.href?.includes('fileDownload') || props.href?.includes('download') || props.href?.includes('afile');
                   let downloadHref = props.href;
                   if (isDownload && downloadHref && downloadHref.startsWith('http')) {
-                    downloadHref = `/api/proxy-download?url=${encodeURIComponent(downloadHref)}`;
+                    const filename = Array.isArray(props.children) ? props.children.join('') : String(props.children);
+                    downloadHref = `/api/proxy-download?url=${encodeURIComponent(downloadHref)}&filename=${encodeURIComponent(filename)}`;
                   }
                   if (isDownload) {
                     return (

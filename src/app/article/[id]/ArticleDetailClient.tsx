@@ -265,14 +265,7 @@ export default function ArticleDetailClient({ id }: { id: string }) {
             <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:animate-ping" />
           </Link>
           <div className="flex items-center gap-6">
-            <button 
-              onClick={toggleBookmark}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all font-black text-xs tracking-widest ${isBookmarked ? 'bg-red-50 border-red-200 text-red-500' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-900 hover:text-slate-900'}`}
-            >
-              <svg className={`w-4 h-4 ${isBookmarked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path></svg>
-              {isBookmarked ? '관심 공고 취소' : '관심 공고 등록'}
-            </button>
-            <span className="bg-black text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
+            <span className="bg-slate-900 text-white px-5 py-2 rounded-full text-[13px] font-black uppercase tracking-widest italic">{post.category}</span>
           </div>
         </div>
       </nav>

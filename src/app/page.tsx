@@ -295,10 +295,10 @@ export default function Home() {
                <LinkNext href={`/article/${heroItem?.id || '#'}`} className="flex flex-col w-full h-full">
                   <div className="overflow-hidden bg-slate-100 shrink-0 relative h-[55%] w-full">
                     <img 
-                      src={heroItem?.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'} 
+                      src={heroItem?.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2000&auto=format&fit=crop'} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[5s]" 
                       alt="Hero" 
-                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=2000&auto=format&fit=crop'; }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2000&auto=format&fit=crop'; }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
@@ -445,10 +445,10 @@ export default function Home() {
                   <LinkNext key={item.id} href={`/article/${item.id}`} className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-slate-300 hover:shadow-xl transition-all">
                     <div className="relative aspect-[16/9] overflow-hidden bg-slate-100">
                       <img 
-                        src={item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=600&auto=format&fit=crop'} 
+                        src={item.image_url || 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop'} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                         alt={title}
-                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=600&auto=format&fit=crop'; }}
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=600&auto=format&fit=crop'; }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                       <div className="absolute top-2.5 left-2.5">
@@ -557,8 +557,9 @@ export default function Home() {
                     return (
                     <LinkNext key={item.id} href={`/article/${item.id}`} className="flex items-center gap-5 py-6 px-4 -mx-4 border-b border-slate-200 hover:bg-slate-50 transition-all group rounded-xl">
                        <span className="text-xs font-black text-slate-300 italic w-5 shrink-0 text-center">{idx + 1}</span>
-                       <div className="w-14 h-14 bg-slate-100 shrink-0 overflow-hidden border border-slate-200 rounded-lg shadow-sm">
-                          <img src={item.image_url || 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=100&auto=format&fit=crop'} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=100&auto=format&fit=crop'; }} />
+                       <div className="w-14 h-14 bg-slate-100 shrink-0 overflow-hidden border border-slate-200 rounded-lg shadow-sm flex items-center justify-center relative">
+                          <svg className="w-6 h-6 text-slate-300 absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5L18.5 7H20" /></svg>
+                          {item.image_url && <img src={item.image_url} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 relative z-10" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
                        </div>
                        <div className="flex-1 min-w-0 pr-4 space-y-1.5">
                           <div className="flex items-center gap-2 mb-0.5">

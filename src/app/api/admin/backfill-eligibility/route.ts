@@ -34,7 +34,7 @@ export async function GET() {
     // Process in parallel chunks of 5
     const CHUNK_SIZE = 5;
     for (let i = 0; i < posts.length; i += CHUNK_SIZE) {
-      if (Date.now() - startTime > 50000) {
+      if (Date.now() - startTime > 58000) { // 58 seconds
         console.log('[Timeout Protection] Stopping partial backfill.');
         break;
       }

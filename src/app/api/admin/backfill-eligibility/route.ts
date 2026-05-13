@@ -31,20 +31,19 @@ export async function GET() {
     let updatedCount = 0;
     const startTime = Date.now();
 
-    for (const post of posts) {
-      // Vercel timeout protection
+    // Process in parallel chunks of 5
+    const CHUNK_SIZE = 5;
+    for (let i = 0; i < posts.length; i += CHUNK_SIZE) {
       if (Date.now() - startTime > 50000) {
         console.log('[Timeout Protection] Stopping partial backfill.');
-        return NextResponse.json({ 
-          message: 'Timeout protection: Partial complete. Please refresh to continue.', 
-          total_remaining: posts.length, 
-          updated_this_run: updatedCount
-        });
+        break;
       }
 
-      console.log(`[Backfill] Processing: ${post.title}`);
+      const chunk = posts.slice(i, i + CHUNK_SIZE);
+      await Promise.all(chunk.map(async (post) => {
+        console.log(`[Backfill] Processing: ${post.title}`);
 
-      const prompt = `당신은 대한민국 1등 경영 전략 컨설턴트입니다. 다음 정부지원공고 내용을 분석하여, 지원자가 본인의 적합성을 3초 만에 판단할 수 있는 [AI 자가진단 체크리스트]를 작성하세요.
+        const prompt = `당신은 대한민국 1등 경영 전략 컨설턴트입니다. 다음 정부지원공고 내용을 분석하여, 지원자가 본인의 적합성을 3초 만에 판단할 수 있는 [AI 자가진단 체크리스트]를 작성하세요.
 
 공고 제목: ${post.title}
 본문 요약: ${post.summary || ''}
@@ -57,31 +56,38 @@ export async function GET() {
 4. 심사역 관점의 전문적인 비즈니스/법률 용어와 구체적인 수치를 포함하세요.
 5. 오직 체크리스트 3줄만 출력하세요. 다른 설명이나 인사말은 절대 금지합니다.`;
 
-      try {
-        const result = await model.generateContent(prompt);
-        const checklist = result.response.text().trim();
-        
-        if (checklist.includes('### 📋 AI 자가진단 체크리스트')) {
-          const updatedContent = checklist + '\n\n' + post.content;
-          const { error: upErr } = await supabaseAdmin
-            .from('posts')
-            .update({ content: updatedContent })
-            .eq('id', post.id);
-            
-          if (!upErr) {
-            updatedCount++;
-            console.log(`[Backfill] Success: ${post.id}`);
+        try {
+          const result = await model.generateContent(prompt);
+          const checklist = result.response.text().trim();
+          
+          if (checklist.includes('### 📋 AI 자가진단 체크리스트')) {
+            const updatedContent = checklist + '\n\n' + post.content;
+            const { error: upErr } = await supabaseAdmin
+              .from('posts')
+              .update({ content: updatedContent })
+              .eq('id', post.id);
+              
+            if (!upErr) {
+              updatedCount++;
+            }
           }
+        } catch (aiErr) {
+          console.error(`[Backfill] Error for ${post.id}:`, aiErr);
         }
-      } catch (aiErr) {
-        console.error(`[Backfill] AI Error for ${post.id}:`, aiErr);
-      }
+      }));
+    }
+
+    if (posts.length > updatedCount) {
+       return NextResponse.json({ 
+          message: 'Partial complete. Please refresh to continue.', 
+          total_remaining: posts.length - updatedCount, 
+          updated_this_run: updatedCount
+        });
     }
 
     return NextResponse.json({ 
       message: 'All backfill completed successfully', 
-      total_processed: posts.length, 
-      updated: updatedCount
+      total_processed: updatedCount
     });
   } catch (err: any) {
     console.error('[Backfill Critical Error]', err.message);

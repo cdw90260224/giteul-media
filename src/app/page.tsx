@@ -522,9 +522,16 @@ export default function Home() {
                <div className="flex items-end justify-between mb-4 px-2">
                  <div className="flex items-center gap-3">
                    <div className="w-1.5 h-6 bg-slate-900" />
-                   <h3 className="text-2xl font-black italic tracking-tighter">
-                     {activeTab === '뉴스·테크' ? '글로벌 테크 & 비즈니스 인사이트' : '인사이트&뉴스'}
-                   </h3>
+                   <h3 className="font-black italic tracking-tighter">
+                      {activeTab === '뉴스·테크' ? (
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl not-italic">글로벌 테크 &</span>
+                          <span className="text-xl opacity-50 not-italic">비즈니스 인사이트</span>
+                        </div>
+                      ) : (
+                        <span className="text-2xl">인사이트&뉴스</span>
+                      )}
+                    </h3>
                  </div>
                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">GLOBAL ANALYSIS</span>
                </div>

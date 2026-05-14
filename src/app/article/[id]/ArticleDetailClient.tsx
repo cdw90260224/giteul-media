@@ -381,14 +381,14 @@ export default function ArticleDetailClient({ id }: { id: string }) {
     if (startIndex !== -1) {
       const remainingContent = mainContent.slice(startIndex);
       const lines = remainingContent.split(/\r?\n/);
-      const nextHeaderIdx = lines.slice(1).findIndex(l => l.trim().startsWith('#'));
+      const nextHeaderIdx = lines.slice(1).findIndex((l: string) => l.trim().startsWith('#'));
       const sectionLines = nextHeaderIdx !== -1 ? lines.slice(0, nextHeaderIdx + 1) : lines;
       
       eligibilityQuestions = sectionLines
-        .map(l => l.trim())
-        .filter(l => l.startsWith('-') || l.startsWith('*') || /^\d+\./.test(l))
-        .map(l => l.replace(/^([-*] \[\s*\]|[-*]|\d+\.)\s*/, '').trim())
-        .filter(q => q.length > 5);
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.startsWith('-') || l.startsWith('*') || /^\d+\./.test(l))
+        .map((l: string) => l.replace(/^([-*] \[\s*\]|[-*]|\d+\.)\s*/, '').trim())
+        .filter((q: string) => q.length > 5);
 
       if (eligibilityQuestions.length > 0) {
         const fullSectionText = sectionLines.join('\n');

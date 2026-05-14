@@ -237,56 +237,25 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
 
             const prompt = `당신은 대한민국 기업 지원사업 전문 큐레이터입니다. 
 
-            [영구 지침]
-            1. 현재 연도는 2026년입니다. 모든 날짜 판단의 기준은 2026년입니다.
+            [영구 지침 - 반드시 준수]
+            1. 현재 연도는 2026년입니다. 모든 날짜 계산 및 판단의 기준은 2026년입니다.
             2. 마감일자(D-Day)는 서비스 신뢰도의 핵심입니다. 추출된 마감일 [${confirmedDeadline || '알 수 없음'}] 이 있다면 반드시 사수하세요. 귀찮아서 '상시 접수'라고 쓰는 것을 엄격히 금지합니다.
-            3. 초기 크롤링 단계에서는 '상세 전략 리포트'나 '기자의 시선'을 절대 작성하지 마세요.
-            4. 카테고리는 반드시 '정부지원공고'로 설정하세요.
+            3. 카테고리는 반드시 '정부지원공고'로 설정하세요.
 
-            [절대 금지사항]
-            - "알 수 없음", "정보 없음", "확인 필요", "예상됩니다", "추정됩니다", "것으로 보입니다", "추론" 같은 추측성·면피성 문구를 절대 사용하지 마세요.
-            - 원문에 없는 정보는 아예 언급하지 마세요.
+            [할루시네이션 및 면피성 문구 절대 금지]
+            - "정보가 포함되어 있지 않습니다", "알 수 없음", "확인 필요", "예상됩니다" 같은 문구를 절대 사용하지 마세요. 
+            - 정보가 부족하다면 공고문의 맥락을 분석하여 '추측되는 요건'이나 '사업 목적에 따른 준비 팁'으로 승화시켜 작성하세요.
 
-            [content 작성 규칙]
-            지원대상, 지원혜택, 접수일정은 이미 별도 UI에 표시되므로 content에서 반복하지 마세요.
-            content에는 다음을 중심으로 마크다운(### H3 헤더)으로 작성하세요:
-            - 사업 개요 및 취지
-            - 트랙/유형별 세부 내용 (있는 경우)
-            - 선정절차 및 평가 방법
-            - 신청 방법 및 제출 서류
-            - 유의사항 및 제외 대상
-            - [중요] 반드시 본문 최상단에 '### 📋 AI 자가진단 체크리스트'라는 대제목을 만들고, 그 아래에 첨부파일을 딥리딩하여 도출한 '가장 치명적인 복합 탈락 요건(지원 자격)' 3가지를 마크다운 체크리스트('- [ ] 질문형식의 자격요건?') 형태로 작성하세요.
-              (※ 절대 뻔하고 단순한 질문을 하지 마세요. 반드시 두 가지 이상의 조건이 결합된 복합 질문("~이면서 ~입니까?")의 형태로, 심사역 관점의 전문적인 비즈니스/법률 용어와 구체적인 수치를 포함하세요. 
-              예: '- [ ] 공고일 기준 법인설립등기일이 3년 이내이면서, 직전 연도(25년) 매출액 10억 원 미만의 조건을 동시에 충족하십니까?')
-            - [중요] 만약 원천 데이터에 '### 📎 첨부파일' 섹션이 있다면, 이를 본문 가장 하단에 절대 누락하지 말고 무조건 그대로 포함시키세요. (첨부파일은 사용자의 최우선 니즈이므로 없으면 생략하되, 존재한다면 100% 보장해서 포함할 것)
+            [content 및 리치 데이터 작성 규칙]
+            1. 반드시 본문 최상단에 '### 📋 AI 자가진단 체크리스트'라는 대제목을 만들고, 그 아래에 첨부파일을 딥리딩하여 도출한 '가장 치명적인 복합 탈락 요건' 3가지를 체크박스 형식('- [ ] ')으로 작성하세요.
+            2. 지원 대상(target), 혜택(benefits), 일정(schedule)은 각각 1문장으로 핵심만 요약하세요.
+            3. 본문 하단에 반드시 '### 📎 첨부파일' 섹션이 포함되도록 하세요.
             
-            [분류 지시]
-            반드시 아래 제공된 카테고리 풀 안에서 가장 적합한 태그 1~3개를 골라, 콤마(,)로 구분된 하나의 문자열로 'sector' 필드에 반환하세요.
-            (예: "AI/빅데이터, R&D 지원, 초기스타트업")
-            
-            [카테고리 풀]
-            - 산업: AI/빅데이터, SaaS/플랫폼, 바이오/헬스케어, 친환경/에너지, 로봇/모빌리티, 소부장/제조, 핀테크/블록체인, 콘텐츠/게임, 푸드/애그테크, 일반
-            - 형태: R&D 지원, 사업화 자금, 마케팅 바우처, 공간/인프라, 멘토링/컨설팅, 글로벌/수출
-            - 규모: 예비창업자, 초기스타트업, 도약/스케일업, 소상공인, 중소기업
-
-            [핵심 타겟 지시]
-            첨부파일 내부 텍스트와 본문 내용을 싹 다 읽고 다음 3가지를 무조건 뽑아서 기사 본문에 박아 넣으세요:
-            1) 최대 지원 금액 (명시되지 않은 경우 생략)
-            2) 세부 지원 자격 (업력, 나이, 지역 등 구체적인 요건)
-            3) 우대 사항 (가점 기준, 우대 대상 등)
-
-            반드시 다음 JSON 형식을 엄격히 준수하여 응답하세요. 
             JSON 구조: { 
-              "title": "공고명을 깔끔하게 정제한 제목", 
-              "summary": "3줄 이내의 간결한 요약", 
-              "category": "정부지원공고", 
-              "content": "마크다운 기사 본문 (위 작성 규칙 준수)", 
-              "deadline": "YYYY-MM-DD (날짜를 찾을 수 없는 경우에만 null)", 
-              "sector": "위 분류 지시에 따른 태그 문자열"
+              "title", "summary", "category": "정부지원공고", "content", "deadline", "sector", "target", "benefits", "schedule" 
             }
 
             입력 원천 데이터: ${item.title}
-            공고URL: ${item.url}
             ${deepContext ? `\n[상세 본문]\n${deepContext}` : ''}`;
 
             const aiResponse = await callGeminiSafe(prompt);
@@ -299,7 +268,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             let finalDeadline = confirmedDeadline || ((raw.deadline && dateRegex.test(raw.deadline)) ? raw.deadline : null);
 
             if (finalDeadline) {
-              const today = new Date();
+              const today = new Date('2026-05-14'); // [CRITICAL] 2026년 기준
               today.setHours(0, 0, 0, 0);
               const deadlineDate = new Date(finalDeadline);
               
@@ -309,7 +278,7 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
               }
             }
             
-            console.log(`[Pipeline] 최종: 마감=${finalDeadline || 'NULL'} | 대상=${parsedTarget ? 'OK' : 'NULL'} | 혜택=${parsedBenefits ? 'OK' : 'NULL'}`);
+            console.log(`[Pipeline] 최종: 마감=${finalDeadline || 'NULL'} | 대상=${parsedTarget || raw.target ? 'OK' : 'NULL'}`);
 
             const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE);
             
@@ -323,18 +292,18 @@ async function publishByCategory(targetCategory: string, limit: number = 1) {
             const randomImgId = imageIds[Math.floor(Math.random() * imageIds.length)];
             const imageUrl = `https://images.unsplash.com/photo-${randomImgId}?q=80&w=1000&auto=format&fit=crop`;
 
-            // target/benefits/schedule은 K-Startup 원본 데이터 직접 사용 (AI 추측 아님)
+            // [핵심] 스크래핑 데이터(parsedTarget 등)가 없을 경우 AI 추출 데이터(raw.target 등)를 폴백으로 사용
             const postData = {
               title: raw.title, 
-              summary: `[${raw.sector || sector}] ` + raw.summary, 
+              summary: raw.summary.startsWith('[') ? raw.summary : `[${raw.sector?.split(',')[0] || '일반'}] ` + raw.summary, 
               category: '정부지원공고', 
               content: raw.content, 
               notice_url: item.url, 
               image_url: imageUrl,
               deadline_date: finalDeadline, 
-              target: parsedTarget,
-              benefits: parsedBenefits,
-              schedule: parsedSchedule,
+              target: parsedTarget || raw.target,
+              benefits: parsedBenefits || raw.benefits,
+              schedule: parsedSchedule || raw.schedule,
               created_at: new Date().toISOString()
             };
 

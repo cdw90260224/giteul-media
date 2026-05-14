@@ -58,10 +58,13 @@ export async function parseDocumentText(url: string, fileName: string): Promise<
     
     if (ext === 'pdf') {
       try {
-        const data = await pdfParse(buffer);
+        const { PDFParse } = require('pdf-parse');
+        const uint8 = new Uint8Array(buffer);
+        const pdf = new PDFParse(uint8);
+        const data = await pdf.getText();
         return data.text.replace(/\s+/g, ' ').trim();
-      } catch (e) {
-        console.warn(`[DocumentParser] PDF Parse Error for ${fileName}:`, e);
+      } catch (e: any) {
+        console.warn(`[DocumentParser] PDF Parse Error for ${fileName}:`, e.message);
         return null;
       }
     } else if (ext === 'hwp') {

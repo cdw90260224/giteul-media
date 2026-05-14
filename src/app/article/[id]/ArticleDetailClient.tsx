@@ -81,26 +81,26 @@ function EligibilityChecker({ questions }: { questions: string[] }) {
     if (allYes) return {
       title: '지원 적합도 99%! 완벽한 대상입니다.',
       desc: '모든 필수 요건을 충족할 확률이 매우 높습니다. 하단의 전략 리포트를 확인하고 즉시 준비를 시작하세요!',
-      color: 'bg-green-50 border-green-200 text-green-800',
-      icon: '🎉'
+      color: 'bg-green-50 border-green-300 text-green-900 shadow-green-100',
+      icon: '✨'
     };
     if (noCount === 1) return {
       title: '⚠️ 일부 요건 미달: 주의가 필요합니다.',
       desc: '한 가지 항목이 충족되지 않습니다. 예외 조항을 확인하거나, 해당 요건을 보완할 방법이 있는지 원문을 다시 확인해 보세요.',
-      color: 'bg-orange-50 border-orange-200 text-orange-800',
-      icon: '⚠️'
+      color: 'bg-orange-50 border-orange-300 text-orange-900 shadow-orange-100',
+      icon: '💡'
     };
     if (noCount === 2) return {
       title: '🚨 부적합 가능성 높음: 상세 확인 요망',
       desc: '두 가지 핵심 요건이 미달인 상태입니다. 이대로는 지원이 어려울 수 있으니, 하단의 전략 분석 섹션에서 자격 보완 팁을 찾아보세요.',
-      color: 'bg-red-50 border-red-200 text-red-800',
-      icon: '🚨'
+      color: 'bg-red-50 border-red-300 text-red-900 shadow-red-100',
+      icon: '⚠️'
     };
     return {
       title: '🚫 지원 불가 대상일 가능성이 매우 높습니다.',
       desc: '핵심 자격 요건을 모두 충족하지 못하고 있습니다. 무리한 지원보다는 기틀이 추천하는 다른 적합한 공고를 찾아보시는 것을 권장합니다.',
-      color: 'bg-slate-100 border-slate-900 text-slate-900',
-      icon: '🚫'
+      color: 'bg-slate-900 border-slate-700 text-white shadow-slate-200',
+      icon: '❌'
     };
   };
 
@@ -357,12 +357,43 @@ export default function ArticleDetailClient({ id }: { id: string }) {
 
   let mainContent = post?.content || '';
   let eligibilityQuestions: string[] = [];
+  
   if (mainContent) {
-    const checklistRegex = /### 📋 AI 자가진단 체크리스트\n([\s\S]*?)(?=###|$)/;
-    const match = mainContent.match(checklistRegex);
-    if (match && match[1]) {
-      eligibilityQuestions = match[1].split('\n').filter((line: string) => line.trim().startsWith('- [ ]') || line.trim().startsWith('-'));
-      mainContent = mainContent.replace(checklistRegex, '');
+    // [Zero-Failure Extraction] 정규식의 한계를 넘어 문자열 기반으로 확실하게 추출
+    const lowerContent = mainContent.toLowerCase();
+    const markers = ['ai 자격요건 진단', 'ai 자가진단', 'ai 체크리스트', '자가진단 체크리스트'];
+    let startIndex = -1;
+    
+    for (const marker of markers) {
+      const idx = lowerContent.indexOf(marker);
+      if (idx !== -1) {
+        startIndex = mainContent.lastIndexOf('###', idx); // 헤더 시작점 찾기
+        if (startIndex === -1) startIndex = mainContent.lastIndexOf('##', idx);
+        if (startIndex === -1) startIndex = mainContent.lastIndexOf('#', idx);
+        if (startIndex === -1) {
+            // 헤더 표시가 없는 경우 마커 자체를 시작점으로
+            startIndex = idx;
+        }
+        break;
+      }
+    }
+
+    if (startIndex !== -1) {
+      const remainingContent = mainContent.slice(startIndex);
+      const lines = remainingContent.split(/\r?\n/);
+      const nextHeaderIdx = lines.slice(1).findIndex(l => l.trim().startsWith('#'));
+      const sectionLines = nextHeaderIdx !== -1 ? lines.slice(0, nextHeaderIdx + 1) : lines;
+      
+      eligibilityQuestions = sectionLines
+        .map(l => l.trim())
+        .filter(l => l.startsWith('-') || l.startsWith('*') || /^\d+\./.test(l))
+        .map(l => l.replace(/^([-*] \[\s*\]|[-*]|\d+\.)\s*/, '').trim())
+        .filter(q => q.length > 5);
+
+      if (eligibilityQuestions.length > 0) {
+        const fullSectionText = sectionLines.join('\n');
+        mainContent = mainContent.replace(fullSectionText, '');
+      }
     }
   }
 

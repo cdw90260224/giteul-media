@@ -342,29 +342,8 @@ export default function Home() {
 
 
 
-        {activeTab === '뉴스·테크' && (
-          <section className="-mx-8 px-12 py-14 mb-12 bg-[#FBF8FF] rounded-[2.5rem] relative overflow-hidden">
-             <div className="relative z-10 max-w-4xl">
-                <h2 className="text-3xl font-black text-slate-900 mb-2">오늘의 테크 헤드라인</h2>
-                <p className="text-[11px] font-black text-[#a855f7] uppercase tracking-widest mb-10">GLOBAL AI & TECH INTELLIGENCE HUB</p>
-                
-                <div className="flex flex-col gap-8">
-                   {filteredItems.filter(i => i.category !== '정부지원공고').slice(0, 2).map((item, idx) => (
-                      <LinkNext key={item.id} href={`/article/${item.id}`} className="flex gap-6 group cursor-pointer items-start">
-                         <span className="text-3xl font-black text-[#d8b4fe] italic mt-1">{idx + 1}</span>
-                         <div className="flex-1">
-                            <h4 className="text-[18px] font-black text-slate-900 group-hover:text-[#a855f7] transition-colors leading-relaxed line-clamp-1 mb-1.5">{parseTitle(item.title).title}</h4>
-                            <p className="text-[13px] text-slate-500 line-clamp-1">[{item.category}] {item.summary?.replace(/<[^>]*>/g, '')}</p>
-                         </div>
-                      </LinkNext>
-                   ))}
-                </div>
-             </div>
-             <div className="absolute top-12 right-12 text-[#a855f7] opacity-20 pointer-events-none">
-                <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L22 22L12 18L2 22L12 2Z"/></svg>
-             </div>
-          </section>
-        )}
+        {/* Tech Headlines section removed as per user request */}
+
 
         {/* PILL FILTERS */}
         <div className="flex gap-3 mb-10 border-b border-slate-100 pb-8">
